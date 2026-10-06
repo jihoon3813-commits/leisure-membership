@@ -1598,9 +1598,135 @@ window.handleResetAdminPassword = function(e, id) {
   showAdminToast(`[${adm.name}] 관리자의 비밀번호가 성공적으로 재설정되었습니다.`);
 };
 
+// ========================================================
+// Admin Authentication (로그인 / 세션 검증 / 로그아웃)
+// ========================================================
+
+function checkAdminAuth() {
+  const currentAdmin = Storage.getCurrentAdmin ? Storage.getCurrentAdmin() : null;
+  const overlay = $('#admin-login-overlay');
+  
+  if (!currentAdmin) {
+    if (overlay) overlay.style.display = 'flex';
+    const input = $('#login-admin-id');
+    if (input) setTimeout(() => input.focus(), 100);
+    return false;
+  }
+
+  if (overlay) overlay.style.display = 'none';
+  updateAdminProfileUI(currentAdmin);
+  return true;
+}
+window.checkAdminAuth = checkAdminAuth;
+
+function updateAdminProfileUI(admin) {
+  if (!admin) return;
+  const roleInfo = (typeof ADMIN_ROLE_MAP !== 'undefined' && ADMIN_ROLE_MAP[admin.role]) || { label: admin.roleName || admin.role, cls: 'badge-super' };
+
+  // Header UI
+  const hName = $('#header-admin-name');
+  const hRole = $('#header-admin-role');
+  if (hName) hName.textContent = admin.name;
+  if (hRole) {
+    hRole.textContent = roleInfo.label;
+    hRole.className = `status-badge ${roleInfo.cls}`;
+  }
+
+  // Sidebar Footer UI
+  const sName = $('#sidebar-admin-name');
+  const sDept = $('#sidebar-admin-dept');
+  const sRole = $('#sidebar-admin-role');
+  const sAvatar = $('#sidebar-admin-avatar');
+  if (sName) sName.textContent = admin.name;
+  if (sDept) sDept.textContent = admin.department || '관리자';
+  if (sRole) {
+    sRole.textContent = roleInfo.label;
+    sRole.className = `status-badge ${roleInfo.cls}`;
+  }
+  if (sAvatar) {
+    sAvatar.textContent = (admin.name && admin.name[0]) || '관';
+  }
+}
+window.updateAdminProfileUI = updateAdminProfileUI;
+
+window.quickFillAdminLogin = function(username, pw) {
+  const inputId = $('#login-admin-id');
+  const inputPw = $('#login-admin-pw');
+  if (inputId) inputId.value = username;
+  if (inputPw) inputPw.value = pw || '1234';
+};
+
+window.handleAdminLogin = function(e) {
+  e.preventDefault();
+  const username = ($('#login-admin-id')?.value || '').trim().toLowerCase();
+  const password = ($('#login-admin-pw')?.value || '').trim();
+
+  if (!username) {
+    alert('관리자 아이디를 입력해 주세요.');
+    $('#login-admin-id')?.focus();
+    return;
+  }
+
+  const admins = Storage.getAdminAccounts();
+  const target = admins.find(a => a.username.toLowerCase() === username);
+
+  if (!target) {
+    alert(`등록되지 않은 관리자 아이디입니다: "${username}"\n아이디를 다시 확인해 주세요.`);
+    $('#login-admin-id')?.focus();
+    return;
+  }
+
+  if (target.status === 'INACTIVE') {
+    alert(`해당 계정([${target.name}])은 현재 일시정지 상태입니다.\n총괄 최고 관리자에게 문의하세요.`);
+    return;
+  }
+
+  // 비밀번호 확인 (설정된 비밀번호 또는 기본값 '1234')
+  const validPw = target.password || '1234';
+  if (password && password !== validPw) {
+    alert('비밀번호가 일치하지 않습니다.');
+    $('#login-admin-pw')?.focus();
+    return;
+  }
+
+  // 최근 접속 시간 갱신
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  target.lastLogin = timeStr;
+  Storage.saveAdminAccounts(admins);
+
+  // 세션 설정 및 감사 로그 기록
+  Storage.setCurrentAdmin(target);
+  if (Storage.addAdminLog) {
+    Storage.addAdminLog(target.name, 'LOGIN', '관리자 콘솔 로그인', `관리자 [${target.name}(${target.username})] 콘솔 접속 성공`);
+  }
+
+  checkAdminAuth();
+  updateStats();
+  refreshCurrentTab();
+  showAdminToast(`환영합니다, ${target.name}님! 로그인되었습니다.`);
+};
+
+window.handleAdminLogout = function() {
+  const current = Storage.getCurrentAdmin ? Storage.getCurrentAdmin() : null;
+  if (!confirm('관리자 세션을 종료하고 로그아웃하시겠습니까?')) return;
+
+  if (current && Storage.addAdminLog) {
+    Storage.addAdminLog(current.name, 'LOGOUT', '관리자 콘솔 로그아웃', `관리자 [${current.name}(${current.username})] 정상 로그아웃`);
+  }
+
+  if (Storage.setCurrentAdmin) {
+    Storage.setCurrentAdmin(null);
+  }
+  showAdminToast('정상적으로 로그아웃되었습니다.');
+  checkAdminAuth();
+};
+
 // Admin Init
 window.addEventListener('DOMContentLoaded', () => {
   initTabs();
   updateStats();
   renderHotelsTable();
+  checkAdminAuth();
 });

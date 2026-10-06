@@ -405,6 +405,27 @@
       </nav>
 
       <div class="admin-sidebar-footer">
+        <!-- Current Logged-in Admin Card -->
+        <div id="sidebar-admin-card" style="background:rgba(255,255,255,0.07);padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div id="sidebar-admin-avatar" style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;">
+                관
+              </div>
+              <div>
+                <div id="sidebar-admin-name" style="font-weight:700;font-size:12px;color:#fff;line-height:1.2;">관리자</div>
+                <div id="sidebar-admin-dept" style="font-size:10px;color:#94a3b8;line-height:1.2;">본사 IT운영총괄</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);margin-top:6px;">
+            <span id="sidebar-admin-role" class="status-badge badge-super" style="font-size:10px;padding:1px 6px;">최고 관리자</span>
+            <button type="button" onclick="handleAdminLogout()" style="background:#ef444422;border:1px solid #ef444455;color:#fca5a5;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;" title="관리자 로그아웃">
+              로그아웃
+            </button>
+          </div>
+        </div>
+
         <a href="index.html" class="btn-return-home">
           <span>← 라운지 사용자 화면</span>
         </a>
@@ -420,10 +441,22 @@
           <h1 id="tab-title">숙박시설 통합 관리</h1>
           <p id="tab-subtitle">전국 48개 숙박시설 일괄 요금 설정, 메인 노출 관리 및 신규 등록</p>
         </div>
-        <div id="tab-header-actions">
-          <button class="btn-admin-primary" onclick="openAddHotelModal()">
-            + 신규 숙박시설 등록
-          </button>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="tab-header-actions">
+            <button class="btn-admin-primary" onclick="openAddHotelModal()">
+              + 신규 숙박시설 등록
+            </button>
+          </div>
+          <div id="header-admin-profile" style="display:flex;align-items:center;gap:10px;background:#fff;padding:6px 12px;border-radius:8px;border:1px solid var(--admin-border);box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;"></span>
+              <strong id="header-admin-name" style="font-size:13px;color:#0f172a;">총괄관리자</strong>
+              <span id="header-admin-role" class="status-badge badge-super" style="font-size:10px;">최고 관리자</span>
+            </div>
+            <button type="button" class="btn-tbl-sm btn-tbl-danger" onclick="handleAdminLogout()" style="padding:4px 10px;font-size:11px;font-weight:700;">
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
 
@@ -831,6 +864,53 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- Admin Login Overlay -->
+  <div id="admin-login-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.88);backdrop-filter:blur(10px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#fff;border-radius:18px;box-shadow:0 25px 60px -15px rgba(0,0,0,0.4);width:100%;max-width:440px;overflow:hidden;border:1px solid #e2e8f0;">
+      <div style="background:#0f1a28;color:#fff;padding:32px 28px 24px;text-align:center;position:relative;">
+        <div style="font-family:Georgia,serif;font-size:38px;font-weight:700;line-height:1;margin-bottom:6px;">H<span style="color:#c5a059;">1</span></div>
+        <div style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">에이치디원 관리자 인증</div>
+        <div style="font-size:11px;color:#94a3b8;letter-spacing:0.12em;margin-top:4px;">ADMIN CONSOLE AUTHENTICATION</div>
+      </div>
+      
+      <div style="padding:28px 24px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;font-size:12px;color:#475569;margin-bottom:18px;line-height:1.5;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🔒</span>
+          <div>관리자 전용 콘솔입니다. 등록된 <strong>관리자 아이디</strong>를 입력해 주세요.</div>
+        </div>
+
+        <form id="admin-login-form" onsubmit="handleAdminLogin(event)" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">관리자 아이디 (ID)</label>
+            <input type="text" id="login-admin-id" placeholder="관리자 ID (예: admin)" required class="search-input" style="width:100%;padding:11px 14px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;" autofocus>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">비밀번호 (PW)</label>
+            <input type="password" id="login-admin-pw" placeholder="비밀번호 입력 (기본값: 1234)" value="1234" required class="search-input" style="width:100%;padding:11px 14px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;">
+          </div>
+          
+          <button type="submit" class="btn-admin-primary" style="width:100%;padding:13px;font-size:14px;font-weight:800;justify-content:center;margin-top:6px;border-radius:8px;">
+            관리자 콘솔 접속
+          </button>
+        </form>
+
+        <div style="margin-top:22px;padding-top:16px;border-top:1px solid #f1f5f9;">
+          <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">⚡ 빠른 체험 계정 선택:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <button type="button" class="btn-tbl-sm" onclick="quickFillAdminLogin('admin', '1234')" style="font-size:11px;padding:5px 8px;font-weight:600;">👑 총괄관리자</button>
+            <button type="button" class="btn-tbl-sm" onclick="quickFillAdminLogin('hotel_op', '1234')" style="font-size:11px;padding:5px 8px;font-weight:600;">🏨 운영관리자</button>
+            <button type="button" class="btn-tbl-sm" onclick="quickFillAdminLogin('cs_lead', '1234')" style="font-size:11px;padding:5px 8px;font-weight:600;">💬 CS관리자</button>
+            <button type="button" class="btn-tbl-sm" onclick="quickFillAdminLogin('gangnam_mgr', '1234')" style="font-size:11px;padding:5px 8px;font-weight:600;">🏢 지사관리자</button>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;text-align:center;">
+          <a href="index.html" style="font-size:12px;color:#64748b;text-decoration:none;font-weight:600;">← 라운지 사용자 화면으로 나가기</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Admin Modal Dialog -->

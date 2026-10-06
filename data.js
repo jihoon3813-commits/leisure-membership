@@ -1190,6 +1190,7 @@ const DEFAULT_ADMIN_ACCOUNTS = [
   {
     id: 'ADM-001',
     username: 'admin',
+    password: '1234',
     name: '총괄관리자',
     role: 'SUPER_ADMIN',
     roleName: '최고 관리자',
@@ -1204,6 +1205,7 @@ const DEFAULT_ADMIN_ACCOUNTS = [
   {
     id: 'ADM-002',
     username: 'hotel_op',
+    password: '1234',
     name: '박준영 팀장',
     role: 'OP_ADMIN',
     roleName: '운영 관리자',
@@ -1218,6 +1220,7 @@ const DEFAULT_ADMIN_ACCOUNTS = [
   {
     id: 'ADM-003',
     username: 'cs_lead',
+    password: '1234',
     name: '이수민 매니저',
     role: 'CS_ADMIN',
     roleName: 'CS 상담관리자',
@@ -1232,6 +1235,7 @@ const DEFAULT_ADMIN_ACCOUNTS = [
   {
     id: 'ADM-004',
     username: 'gangnam_mgr',
+    password: '1234',
     name: '최강남 지사장',
     role: 'BRANCH_ADMIN',
     roleName: '지사 관리자',
@@ -1246,6 +1250,7 @@ const DEFAULT_ADMIN_ACCOUNTS = [
   {
     id: 'ADM-005',
     username: 'audit_temp',
+    password: '1234',
     name: '정윤호 연구원',
     role: 'VIEWER_ADMIN',
     roleName: '조회 전용',
@@ -1311,7 +1316,8 @@ const Storage = {
     USERS: 'hd_one_users_v3',
     DEFAULT_HOTEL_PRICE: 'hd_one_default_price_v3',
     ADMIN_ACCOUNTS: 'hd_one_admins_v3',
-    ADMIN_LOGS: 'hd_one_admin_logs_v3'
+    ADMIN_LOGS: 'hd_one_admin_logs_v3',
+    CURRENT_ADMIN: 'hd_one_current_admin_v3'
   },
 
   init() {
@@ -1521,13 +1527,36 @@ const Storage = {
 
   getAdminAccounts() {
     try {
-      return JSON.parse(localStorage.getItem(this.KEYS.ADMIN_ACCOUNTS)) || DEFAULT_ADMIN_ACCOUNTS;
+      const list = JSON.parse(localStorage.getItem(this.KEYS.ADMIN_ACCOUNTS)) || DEFAULT_ADMIN_ACCOUNTS;
+      // 비밀번호 필드 보장
+      return list.map(a => ({
+        ...a,
+        password: a.password || '1234'
+      }));
     } catch {
       return DEFAULT_ADMIN_ACCOUNTS;
     }
   },
   saveAdminAccounts(list) {
     localStorage.setItem(this.KEYS.ADMIN_ACCOUNTS, JSON.stringify(list));
+  },
+
+  getCurrentAdmin() {
+    try {
+      const session = sessionStorage.getItem(this.KEYS.CURRENT_ADMIN) || localStorage.getItem(this.KEYS.CURRENT_ADMIN);
+      return session ? JSON.parse(session) : null;
+    } catch {
+      return null;
+    }
+  },
+  setCurrentAdmin(admin) {
+    if (admin) {
+      sessionStorage.setItem(this.KEYS.CURRENT_ADMIN, JSON.stringify(admin));
+      localStorage.setItem(this.KEYS.CURRENT_ADMIN, JSON.stringify(admin));
+    } else {
+      sessionStorage.removeItem(this.KEYS.CURRENT_ADMIN);
+      localStorage.removeItem(this.KEYS.CURRENT_ADMIN);
+    }
   },
 
   getAdminLogs() {
