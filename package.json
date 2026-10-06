@@ -1,0 +1,18 @@
+{
+  "name": "hd-one-lounge",
+  "version": "1.0.0",
+  "description": "HD ONE LOUNGE - Premium Membership & Leisure Reservation System",
+  "main": "dev-server.js",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "start": "node dev-server.js"
+  },
+  "keywords": [
+    "hd-one-lounge",
+    "gentrify",
+    "membership",
+    "reservation"
+  ],
+  "author": "HD ONE LOUNGE",
+  "license": "ISC"
+}

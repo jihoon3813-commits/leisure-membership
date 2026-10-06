@@ -1,0 +1,242 @@
+﻿[
+    {
+        "name":  "[인천/송도] 셀럽스테이호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/xfcvibvrvk_a.jpg",
+        "location":  "인천광역시 연수구"
+    },
+    {
+        "name":  "[인천/영종도] 오션파크나인호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/mjobpjnagv_a.jpg",
+        "location":  "인천광역시 중구"
+    },
+    {
+        "name":  "[인천/영종도] 스카이탑호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/qzppblmpzi_a.jpg",
+        "location":  "인천광역시 중구"
+    },
+    {
+        "name":  "[인천/영종도] 영종도 지엘시티호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/umztbfsfdb_a.jpg",
+        "location":  "인천광역시 중구"
+    },
+    {
+        "name":  "[강원/양양] 오션스테이양양(E7 죽도)",
+        "image":  "https://hhan.kr:13399/file/sang_main/rwgtecirsb_a.jpg",
+        "location":  "강원도 양양군"
+    },
+    {
+        "name":  "[강원/양양] 슬로우웨이브펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/ljaqlcrsnh_a.jpg",
+        "location":  "강원도 양양군"
+    },
+    {
+        "name":  "[강원/강릉] 아썸펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/xhpercgkfn_a.jpg",
+        "location":  "강원도 강릉시"
+    },
+    {
+        "name":  "[강원/철원] 마운틴밸리펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/jwzppitnpo_a.jpg",
+        "location":  "강원도 철원군"
+    },
+    {
+        "name":  "[강원/양양] 38마린리조트",
+        "image":  "https://hhan.kr:13399/file/sang_main/kdzkabxjdy_a.jpg",
+        "location":  "강원도 양양군"
+    },
+    {
+        "name":  "[경남/진주] 골든튤립호텔남강",
+        "image":  "https://hhan.kr:13399/file/sang_main/hqqrbzdoxx_a.jpg",
+        "location":  "경상남도 진주시"
+    },
+    {
+        "name":  "[부산/해운대] 해운대 플레아드블랑호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/eonvfcbnid_a.jpg",
+        "location":  "부산광역시 해운대구"
+    },
+    {
+        "name":  "[부산/강서] 더웨스턴부산호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/asgfrafoqr_a.jpg",
+        "location":  "부산 강서구"
+    },
+    {
+        "name":  "[경기/안산] 호텔데일리",
+        "image":  "https://hhan.kr:13399/file/sang_main/atsylndjwo_a.jpg",
+        "location":  "경기도 안산시"
+    },
+    {
+        "name":  "[제주/조천] 아침해변펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/xpqlbxjoyg_a.jpg",
+        "location":  "제주특별자치도 제주시"
+    },
+    {
+        "name":  "[제주/서귀포] 제주엠리조트",
+        "image":  "https://hhan.kr:13399/file/sang_main/gfbncxynrl_a.jpg",
+        "location":  "제주특별자치도 서귀포시"
+    },
+    {
+        "name":  "[경기/수원] 아모레미오 더클래식",
+        "image":  "https://hhan.kr:13399/file/sang_main/diynnjoiyu_a.jpg",
+        "location":  "경기도 수원시"
+    },
+    {
+        "name":  "[경기/가평] 가평아늑에어호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/hlbwqmfhzx_a.jpg",
+        "location":  "경기도 가평군"
+    },
+    {
+        "name":  "[경기/포천] 호텔마루포천점",
+        "image":  "https://hhan.kr:13399/file/sang_main/scvnfwbozn_a.jpg",
+        "location":  "경기도 포천시"
+    },
+    {
+        "name":  "[경기/파주] 파주호텔얌",
+        "image":  "https://hhan.kr:13399/file/sang_main/ujpwizdxwg_a.jpg",
+        "location":  "경기도 파주시"
+    },
+    {
+        "name":  "[경기/가평] 옹달샘펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/zlsnxazcql_a.jpg",
+        "location":  "경기도 가평군"
+    },
+    {
+        "name":  "[강원/동해] 망상파크펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/ejwfrlvlro_a.jpg",
+        "location":  "강원도 동해시"
+    },
+    {
+        "name":  "[강원/춘천] 뷰티풀펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/wcozxmykce_a.jpg",
+        "location":  "강원도 춘천시"
+    },
+    {
+        "name":  "[강원/양양] 다빛펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/xfsgchlwfp_a.jpg",
+        "location":  "강원도 양양군"
+    },
+    {
+        "name":  "[강원/양양] 설악대문터계곡펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/kxtixwtutu_a.jpg",
+        "location":  "강원 양양군"
+    },
+    {
+        "name":  "[강원/양양] 다온휴펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/duromodbol_a.jpg",
+        "location":  "강원도 양양군"
+    },
+    {
+        "name":  "[강원/평창] 숲속의요정",
+        "image":  "https://hhan.kr:13399/file/sang_main/hmcyqqyvtl_a.jpg",
+        "location":  "강원도 평창군"
+    },
+    {
+        "name":  "[강원/태백] 설화국가족호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/ypubxabsnq_a.jpg",
+        "location":  "강원도 태백시"
+    },
+    {
+        "name":  "[충북/충주] 알아이(RI) 종합온천호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/eaykuaziik_a.jpg",
+        "location":  "충청북도 충주시"
+    },
+    {
+        "name":  "[충북/보은] 속리산호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/vtpfciajwx_a.jpg",
+        "location":  "충청북도 보은군"
+    },
+    {
+        "name":  "[충북/음성] 호텔하루",
+        "image":  "https://hhan.kr:13399/file/sang_main/zuaezwgixd_a.jpg",
+        "location":  "충청북도 음성군"
+    },
+    {
+        "name":  "﻿[충남/청양] 칠갑산샬레호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/xrfermqwqn_a.jpg",
+        "location":  "충청남도 청양군"
+    },
+    {
+        "name":  "[충남/보령] 호텔아일랜드",
+        "image":  "https://hhan.kr:13399/file/sang_main/rzpcltdxkf_a.jpg",
+        "location":  "충청남도 보령시"
+    },
+    {
+        "name":  "[충남/보령] 더대천스토리펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/ixfvzwmzha_a.jpg",
+        "location":  "충청남도 보령시"
+    },
+    {
+        "name":  "[충남/천안] 소륜호텔 천안점",
+        "image":  "https://hhan.kr:13399/file/sang_main/akglpillxl_a.jpg",
+        "location":  "충청남도 천안시"
+    },
+    {
+        "name":  "[경북/영덕] 칠보산온천리조트",
+        "image":  "https://hhan.kr:13399/file/sang_main/qyysrvomke_a.jpg",
+        "location":  "경상북도 영덕군"
+    },
+    {
+        "name":  "[경북/안동] 안동호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/pwthmtmais_a.jpg",
+        "location":  "경상북도 안동시"
+    },
+    {
+        "name":  "[경남/마산] 아모르호텔",
+        "image":  "https://hhan.kr:13399/file/sang_main/srbdndwtrc_a.jpg",
+        "location":  "경상남도 창원시"
+    },
+    {
+        "name":  "[경남/밀양] 고추잠자리펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/kiwiaijsnd_a.jpg",
+        "location":  "경상남도 밀양시"
+    },
+    {
+        "name":  "[경남/남해] 꽃달임펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/eumuntrabh_a.jpg",
+        "location":  "경상남도 남해군"
+    },
+    {
+        "name":  "[경남/남해] 비치하우스펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/gcyreuiyij_a.jpg",
+        "location":  "경상남도 남해군"
+    },
+    {
+        "name":  "[전북/전주] 아늑호텔전주점",
+        "image":  "https://hhan.kr:13399/file/sang_main/cutqcksgng_a.jpg",
+        "location":  "전라북도 전주시"
+    },
+    {
+        "name":  "[전남/여수] 퍼스트시티호텔프리미엄",
+        "image":  "https://hhan.kr:13399/file/sang_main/cwajrejixn_a.jpg",
+        "location":  "전라남도 여수시"
+    },
+    {
+        "name":  "[전남/목포] 루벤스호텔 평화광장점",
+        "image":  "https://hhan.kr:13399/file/sang_main/raqpxdekqw_a.jpg",
+        "location":  "전라남도 목포시"
+    },
+    {
+        "name":  "[전남/구례] 지리산리틀프린스펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/trxiefbiie_a.jpg",
+        "location":  "전라남도 구례군"
+    },
+    {
+        "name":  "[전남/순천] 용마루펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/oakfucaweb_a.jpg",
+        "location":  "전라남도 순천시"
+    },
+    {
+        "name":  "[전남/여수] 가사리꽃님이네펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/xksfumxziy_a.jpg",
+        "location":  "전라남도 여수시"
+    },
+    {
+        "name":  "[전남/순천] 순천만뜰펜션",
+        "image":  "https://hhan.kr:13399/file/sang_main/fwidlmevsn_a.jpg",
+        "location":  "전라남도 순천시"
+    },
+    {
+        "name":  "[전남/여수] 스테이결",
+        "image":  "https://hhan.kr:13399/file/sang_main/bnsqojzsrs_a.jpg",
+        "location":  "전라남도 여수시"
+    }
+]
