@@ -27,6 +27,15 @@ window.parseNumberFromCommas = function(val) {
   return parseInt(String(val).replace(/[^0-9]/g, ''), 10) || 0;
 };
 
+window.autoHyphenPhone = function(str) {
+  if (!str) return '';
+  const clean = str.replace(/[^0-9]/g, '');
+  if (clean.length < 4) return clean;
+  if (clean.length < 7) return clean.substr(0, 3) + '-' + clean.substr(3);
+  if (clean.length < 11) return clean.substr(0, 3) + '-' + clean.substr(3, 3) + '-' + clean.substr(6);
+  return clean.substr(0, 3) + '-' + clean.substr(3, 4) + '-' + clean.substr(7, 4);
+};
+
 function showAdminToast(msg) {
   const t = $('#toast');
   if (!t) return;
@@ -71,8 +80,7 @@ function switchTab(tab) {
     reservations: { title: '숙박 예약 신청 관리', sub: '고객 예약 신청건 확인, 주소/요청사항 조회 및 예약 확정 처리' },
     inquiries: { title: '1:1 맞춤 상담 내역', sub: '고객 맞춤 일정/여행 상담 문의 확인 및 상태 관리' },
     'other-products': { title: '기타 카테고리 상품 관리', sub: '펜션·풀빌라, 레저·티켓, 여행 상품 직접 등록 및 관리' },
-    admins: { title: '관리자 계정 관리', sub: '시스템 접근 권한 관리, 신규 관리자 생성, 권한 부여 및 보안 감사 로그' },
-    convex: { title: 'Convex 실시간 클라우드 DB 연동', sub: '전역 실시간 동기화되는 Convex 백엔드 연결 및 데이터 마이그레이션' }
+    admins: { title: '관리자 계정 관리', sub: '시스템 접근 권한 관리, 신규 관리자 생성, 권한 부여 및 보안 감사 로그' }
   };
 
   $('#tab-title').textContent = titles[tab]?.title || '관리자';
@@ -193,6 +201,9 @@ window.applyBatchPrice = function() {
   });
 
   Storage.saveHotels(hotels);
+  if (Storage.addAdminLog) {
+    Storage.addAdminLog('운영관리자', 'PRICE_UPDATE', '숙박시설 요금 일괄 변경', `${region === 'all' ? '전체' : region} 지역 ${updatedCount}개 시설: 정가 ${Money(originalPrice)}원 / 쿠폰가 ${Money(couponPrice)}원 적용`);
+  }
   renderHotelsTable();
   updateStats();
   showAdminToast(`${region === 'all' ? '전체' : region} 지역 ${updatedCount}개 숙박시설: 정가 ${Money(originalPrice)}원 / 쿠폰가 ${Money(couponPrice)}원으로 일괄 변경되었습니다!`);
@@ -566,6 +577,13 @@ window.handleSaveHotel = function(e, id) {
   }
 
   Storage.saveHotels(hotels);
+  if (Storage.addAdminLog) {
+    if (id) {
+      Storage.addAdminLog('운영관리자', 'UPDATE', '숙박시설 정보 수정', `[${name}] 시설 정보/요금/사진 수정 완료`);
+    } else {
+      Storage.addAdminLog('운영관리자', 'CREATE', '숙박시설 신규 등록', `[${name}] 신규 숙박시설 등록 (${region}, 쿠폰가: ${Money(price)}원)`);
+    }
+  }
   closeAdminDialog();
   renderHotelsTable();
   updateStats();
@@ -642,6 +660,9 @@ window.handleCreateAllocation = function(e) {
     }
   }
   Storage.saveCoupons(coupons);
+  if (Storage.addAdminLog) {
+    Storage.addAdminLog('지사관리자', 'COUPON_ALLOC', '쿠폰 대역 일괄 발급', `<${branch}> 지사: ${start}~${end}번 (${updatedCount}매) 발급 등록 완료`);
+  }
 
   $('#alloc-start').value = '';
   $('#alloc-end').value = '';
@@ -857,6 +878,9 @@ window.updateResStatus = function(id, newStatus) {
   if (r) {
     r.status = newStatus;
     Storage.saveReservations(list);
+    if (Storage.addAdminLog) {
+      Storage.addAdminLog('CS상담관리자', 'RES_CONFIRM', '예약 상태 변경', `예약 [${r.id}] (${r.userName} / ${r.hotelName}) -> [${newStatus}]`);
+    }
     updateStats();
     showAdminToast(`예약 상태가 [${newStatus}] 상태로 변경되었습니다.`);
   }
@@ -1070,167 +1094,508 @@ window.deleteOtherProduct = function(id) {
   showAdminToast('상품이 삭제되었습니다.');
 };
 
-// Convex Cloud DB Integration Controls
-function logConvex(msg) {
-  const box = $('#convex-log-box');
-  if (!box) return;
-  const time = new Date().toLocaleTimeString('ko-KR');
-  box.innerHTML += `<div>[${time}] ${msg}</div>`;
-  box.scrollTop = box.scrollHeight;
+// ========================================================
+// TAB 6: 관리자 어드민 계정 관리 및 보안 감사 로그
+// ========================================================
+
+const ADMIN_ROLE_MAP = {
+  SUPER_ADMIN: { label: '최고 관리자', cls: 'badge-super', desc: '전체 시스템 제어 및 계정 관리' },
+  OP_ADMIN: { label: '운영 관리자', cls: 'badge-op', desc: '숙박시설 및 상품 등록/요금 관리' },
+  CS_ADMIN: { label: 'CS 상담관리자', cls: 'badge-cs', desc: '예약 승인 및 1:1 고객상담 관리' },
+  BRANCH_ADMIN: { label: '지사 관리자', cls: 'badge-branch', desc: '지사별 쿠폰 대역 발급 및 배포' },
+  VIEWER_ADMIN: { label: '조회 전용', cls: 'badge-viewer', desc: '데이터 열람 및 모니터링' }
+};
+
+// Render Admin Accounts Table
+function renderAdminsTable() {
+  const admins = Storage.getAdminAccounts ? Storage.getAdminAccounts() : [];
+  const search = ($('#admin-search')?.value || '').trim().toLowerCase();
+  const roleFilter = $('#admin-role-filter')?.value || 'all';
+  const statusFilter = $('#admin-status-filter')?.value || 'all';
+
+  let list = admins.filter(adm => {
+    if (search) {
+      const match = (adm.username && adm.username.toLowerCase().includes(search)) ||
+                    (adm.name && adm.name.toLowerCase().includes(search)) ||
+                    (adm.department && adm.department.toLowerCase().includes(search)) ||
+                    (adm.email && adm.email.toLowerCase().includes(search)) ||
+                    (adm.phone && adm.phone.includes(search)) ||
+                    (adm.memo && adm.memo.toLowerCase().includes(search));
+      if (!match) return false;
+    }
+    if (roleFilter !== 'all' && adm.role !== roleFilter) return false;
+    if (statusFilter !== 'all' && adm.status !== statusFilter) return false;
+    return true;
+  });
+
+  const tbody = $('#admins-tbody');
+  const countEl = $('#admin-table-count');
+  if (countEl) countEl.textContent = list.length;
+  if (!tbody) return;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">조건에 일치하는 관리자 계정이 없습니다.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((adm, idx) => {
+    const roleInfo = ADMIN_ROLE_MAP[adm.role] || { label: adm.role, cls: 'badge-viewer' };
+    const isActive = adm.status === 'ACTIVE';
+    const isSuper = adm.role === 'SUPER_ADMIN';
+
+    return `
+      <tr>
+        <td style="color:#94a3b8;font-weight:600;">${idx + 1}</td>
+        <td>
+          <code style="font-family:monospace;font-weight:700;font-size:13px;color:#0f172a;background:#f1f5f9;padding:3px 7px;border-radius:4px;border:1px solid #cbd5e1;">
+            ${adm.username}
+          </code>
+        </td>
+        <td>
+          <div style="font-weight:700;color:#0f172a;display:flex;align-items:center;gap:6px;">
+            <span>${adm.name}</span>
+            ${isSuper ? '<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;padding:1px 6px;border-radius:10px;font-weight:700;">★ 마스터</span>' : ''}
+          </div>
+          ${adm.memo ? `<small style="color:#64748b;display:block;margin-top:2px;">${adm.memo}</small>` : ''}
+        </td>
+        <td>
+          <span style="font-weight:600;color:#334155;">${adm.department || '-'}</span>
+        </td>
+        <td>
+          <span class="status-badge ${roleInfo.cls}">${roleInfo.label}</span>
+        </td>
+        <td>
+          <div style="font-size:12px;font-weight:600;color:#334155;">${adm.phone || '-'}</div>
+          <div style="font-size:11px;color:#64748b;">${adm.email || '-'}</div>
+        </td>
+        <td>
+          <span style="font-size:12px;color:#475569;">${adm.lastLogin || '<em style="color:#94a3b8;">미접속</em>'}</span>
+        </td>
+        <td style="text-align:center;">
+          <label class="switch" style="vertical-align:middle;">
+            <input type="checkbox" ${isActive ? 'checked' : ''} ${isSuper ? 'disabled title="최고 관리자는 비활성화할 수 없습니다."' : `onchange="toggleAdminStatus('${adm.id}', this.checked)"`}>
+            <span class="slider"></span>
+          </label>
+          <div style="font-size:10px;font-weight:700;margin-top:3px;color:${isActive ? '#16a34a' : '#dc2626'};">
+            ${isActive ? '정상 활성' : '일시정지'}
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex;gap:4px;justify-content:center;">
+            <button class="btn-tbl-sm" onclick="openEditAdminModal('${adm.id}')">수정</button>
+            <button class="btn-tbl-sm" onclick="openResetAdminPasswordModal('${adm.id}')" title="비밀번호 재설정">비번</button>
+            <button class="btn-tbl-sm btn-tbl-danger" onclick="deleteAdmin('${adm.id}')" ${isSuper ? 'disabled style="opacity:0.35;cursor:not-allowed;" title="최고 관리자는 삭제할 수 없습니다."' : ''}>삭제</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
+window.renderAdminsTable = renderAdminsTable;
 
-window.updateConvexUIState = async function() {
-  const input = $('#convex-url-input');
-  const pill = $('#convex-connection-pill');
-  const badge = $('#badge-convex-status');
-  const url = window.ConvexService ? ConvexService.getUrl() : '';
+// Render Admin Audit Logs
+function renderAdminLogsTable() {
+  const logs = Storage.getAdminLogs ? Storage.getAdminLogs() : [];
+  const tbody = $('#admin-logs-tbody');
+  if (!tbody) return;
 
-  if (input) input.value = url || '';
-
-  if (!url) {
-    if (pill) {
-      pill.textContent = '로컬 모드 (미연결)';
-      pill.style.background = '#e2e8f0';
-      pill.style.color = '#64748b';
-    }
-    if (badge) {
-      badge.textContent = '로컬';
-      badge.style.background = '#64748b';
-    }
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:30px;color:#94a3b8;">기록된 감사 로그가 없습니다.</td></tr>`;
     return;
   }
 
-  if (pill) {
-    pill.textContent = '연결 확인 중...';
-    pill.style.background = '#fef3c7';
-    pill.style.color = '#b45309';
-  }
+  const actionColors = {
+    LOGIN: '#0284c7',
+    CREATE: '#16a34a',
+    UPDATE: '#7c3aed',
+    DELETE: '#dc2626',
+    STATUS_CHANGE: '#ea580c',
+    PW_RESET: '#d97706',
+    PRICE_UPDATE: '#2563eb',
+    RES_CONFIRM: '#059669',
+    COUPON_ALLOC: '#4f46e5'
+  };
 
-  try {
-    const list = await ConvexService.query('hotels:list', {});
-    if (pill) {
-      pill.textContent = `연결됨 (호텔 ${list.length}개)`;
-      pill.style.background = '#dcfce7';
-      pill.style.color = '#15803d';
-    }
-    if (badge) {
-      badge.textContent = '연결됨';
-      badge.style.background = '#16a34a';
-    }
-    logConvex(`✅ Convex 연결 정상 확인 (총 ${list.length}개 상품 감지됨)`);
-  } catch (err) {
-    if (pill) {
-      pill.textContent = '연결 실패 (URL 확인 필요)';
-      pill.style.background = '#fee2e2';
-      pill.style.color = '#b91c1c';
-    }
-    if (badge) {
-      badge.textContent = '오류';
-      badge.style.background = '#dc2626';
-    }
-    logConvex(`⚠️ Convex 연결 실패: ${err.message}`);
-  }
-};
+  tbody.innerHTML = logs.slice(0, 50).map(log => {
+    const col = actionColors[log.action] || '#475569';
+    return `
+      <tr>
+        <td style="font-family:monospace;font-size:12px;color:#64748b;white-space:nowrap;">${log.createdAt}</td>
+        <td>
+          <div style="font-weight:700;color:#0f172a;">${log.adminName}</div>
+          <small style="color:#64748b;font-family:monospace;">(${log.adminId})</small>
+        </td>
+        <td>
+          <span class="status-badge" style="background:${col}18;color:${col};border:1px solid ${col}40;">
+            ${log.actionName || log.action}
+          </span>
+        </td>
+        <td style="font-size:12px;color:#334155;">
+          ${log.details}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+window.renderAdminLogsTable = renderAdminLogsTable;
 
-window.saveConvexUrl = async function() {
-  const input = $('#convex-url-input');
-  if (!input) return;
-  const rawUrl = input.value.trim();
-  if (!rawUrl) {
-    alert('Convex 배포 URL을 입력해 주세요.');
-    return;
-  }
-
-  ConvexService.setUrl(rawUrl);
-  logConvex(`🔗 배포 URL 저장: ${rawUrl}`);
-  showAdminToast('배포 URL을 저장했습니다. 연결 테스트 중...');
-  await updateConvexUIState();
-};
-
-window.disconnectConvex = function() {
-  if (!confirm('Convex 연결을 해제하고 로컬 저장소 모드로 전환하시겠습니까?')) return;
-  ConvexService.setUrl('');
-  updateConvexUIState();
-  logConvex('🔌 Convex 연결 해제됨. 로컬 스토리지 모드로 전환되었습니다.');
-  showAdminToast('로컬 모드로 전환되었습니다.');
-};
-
-window.seedToConvex = async function() {
-  if (!ConvexService.isConnected()) {
-    alert('먼저 Convex 배포 URL을 등록해 주세요.');
-    return;
-  }
-
-  const btn = $('#btn-seed-convex');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '⏳ 업로드 진행 중...';
-  }
-
-  try {
-    logConvex('🚀 로컬 숙박시설 및 쿠폰 데이터 Convex 업로드 시작...');
-    const hotels = Storage.getHotels();
-    const coupons = Storage.getCoupons();
-
-    const res = await ConvexService.seedInitialData(hotels, coupons);
-    logConvex(`🎉 업로드 성공! 호텔: ${res.hotelsCount || 0}개, 쿠폰: ${res.couponsCount || 0}개 업로드 완료.`);
-    showAdminToast(`업로드 완료! (호텔: ${res.hotelsCount || 0}건)`);
-    await updateConvexUIState();
-  } catch (err) {
-    logConvex(`❌ 업로드 실패: ${err.message}`);
-    alert(`업로드 실패: ${err.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '🚀 Convex로 전체 데이터 업로드';
-    }
-  }
-};
-
-window.syncFromConvexUI = async function() {
-  if (!ConvexService.isConnected()) {
-    alert('먼저 Convex 배포 URL을 등록해 주세요.');
-    return;
-  }
-
-  const btn = $('#btn-pull-convex');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '⏳ 동기화 중...';
-  }
-
-  try {
-    logConvex('🔄 Convex 클라우드에서 데이터 가져오는 중...');
-    const hotels = await ConvexService.query('hotels:list', {});
-    if (hotels && hotels.length > 0) {
-      Storage.saveHotels(hotels);
-      logConvex(`✅ 숙박시설 ${hotels.length}개 동기화 완료.`);
-    }
-
-    const reservations = await ConvexService.query('reservations:list', {});
-    if (reservations) {
-      Storage.saveReservations(reservations);
-      logConvex(`✅ 예약 내역 ${reservations.length}개 동기화 완료.`);
-    }
-
-    const inquiries = await ConvexService.query('inquiries:list', {});
-    if (inquiries) {
-      Storage.saveInquiries(inquiries);
-      logConvex(`✅ 상담 문의 내역 ${inquiries.length}개 동기화 완료.`);
-    }
-
-    refreshCurrentTab();
+// Clear Logs
+window.clearAdminLogs = function() {
+  if (!confirm('정말 모든 관리자 감사 로그를 초기화하시겠습니까?')) return;
+  if (Storage.saveAdminLogs) {
+    Storage.saveAdminLogs([]);
+    renderAdminLogsTable();
     updateStats();
-    showAdminToast('Convex 클라우드 동기화 완료!');
-  } catch (err) {
-    logConvex(`❌ 동기화 실패: ${err.message}`);
-    alert(`동기화 실패: ${err.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '🔄 Convex 데이터 즉시 동기화';
-    }
+    showAdminToast('관리자 감사 로그가 초기화되었습니다.');
   }
+};
+
+// Toggle Admin Status
+window.toggleAdminStatus = function(id, isChecked) {
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  if (adm.role === 'SUPER_ADMIN') {
+    alert('최고 관리자 계정은 일시정지할 수 없습니다.');
+    renderAdminsTable();
+    return;
+  }
+
+  adm.status = isChecked ? 'ACTIVE' : 'INACTIVE';
+  Storage.saveAdminAccounts(admins);
+  Storage.addAdminLog('총괄관리자', 'STATUS_CHANGE', '관리자 상태 변경', `관리자 [${adm.name}(${adm.username})] 상태를 [${isChecked ? '활성' : '일시정지'}]로 변경`);
+
+  renderAdminsTable();
+  renderAdminLogsTable();
+  updateStats();
+  showAdminToast(`[${adm.name}] 계정이 ${isChecked ? '활성화' : '일시정지'}되었습니다.`);
+};
+
+// Delete Admin
+window.deleteAdmin = function(id) {
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  if (adm.role === 'SUPER_ADMIN') {
+    alert('최고 관리자는 삭제할 수 없습니다.');
+    return;
+  }
+
+  if (admins.length <= 1) {
+    alert('최소 1개 이상의 관리자 계정이 유지되어야 합니다.');
+    return;
+  }
+
+  if (!confirm(`정말 관리자 [${adm.name} (${adm.username})] 계정을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.`)) {
+    return;
+  }
+
+  const updated = admins.filter(a => a.id !== id);
+  Storage.saveAdminAccounts(updated);
+  Storage.addAdminLog('총괄관리자', 'DELETE', '관리자 계정 삭제', `관리자 [${adm.name}(${adm.username})] 계정 영구 삭제`);
+
+  renderAdminsTable();
+  renderAdminLogsTable();
+  updateStats();
+  showAdminToast(`[${adm.name}] 관리자 계정이 삭제되었습니다.`);
+};
+
+// Modal: Add Admin
+window.openAddAdminModal = function() {
+  const html = `
+    <span class="eyebrow blue">계정 관리</span>
+    <h2>신규 관리자 계정 등록</h2>
+    <p>시스템에 접근할 새로운 관리자 계정 정보와 역할을 부여합니다.</p>
+
+    <form onsubmit="handleSaveAdmin(event)" style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>로그인 아이디 (ID) <span class="required">*</span></label>
+          <input type="text" id="adm-username" placeholder="영문/숫자 4자 이상" required pattern="^[a-zA-Z0-9_]{4,20}$" title="영문, 숫자, _ 포함 4~20자">
+        </div>
+        <div class="form-group">
+          <label>관리자 성명 <span class="required">*</span></label>
+          <input type="text" id="adm-name" placeholder="예: 김민수 대리" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>권한 등급 선택 <span class="required">*</span></label>
+          <select id="adm-role" required>
+            <option value="OP_ADMIN">운영 관리자 (숙박/상품 전담)</option>
+            <option value="CS_ADMIN">CS 상담관리자 (예약/상담 처리)</option>
+            <option value="BRANCH_ADMIN">지사 관리자 (쿠폰 대역 발급)</option>
+            <option value="VIEWER_ADMIN">조회 전용 (모니터링/감사)</option>
+            <option value="SUPER_ADMIN">최고 관리자 (마스터 권한)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>소속 부서 / 지사 <span class="required">*</span></label>
+          <input type="text" id="adm-dept" placeholder="예: 본사 CS운영팀, 강남지사 등" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>초기 비밀번호 <span class="required">*</span></label>
+          <input type="password" id="adm-pw" placeholder="최소 6자 이상" minlength="6" required>
+        </div>
+        <div class="form-group">
+          <label>비밀번호 확인 <span class="required">*</span></label>
+          <input type="password" id="adm-pw-confirm" placeholder="비밀번호 재입력" minlength="6" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>휴대폰 번호 <span class="required">*</span></label>
+          <input type="tel" id="adm-phone" placeholder="010-0000-0000" oninput="this.value = autoHyphenPhone(this.value)" required>
+        </div>
+        <div class="form-group">
+          <label>이메일 주소 <span class="required">*</span></label>
+          <input type="email" id="adm-email" placeholder="admin@example.com" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>관리자 비고 / 담당 업무 메모</label>
+        <textarea id="adm-memo" rows="2" placeholder="담당 업무나 특이사항을 기재하세요"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeAdminDialog()">취소</button>
+        <button type="submit" class="btn-submit-reserve">관리자 계정 생성</button>
+      </div>
+    </form>
+  `;
+  openAdminDialog(html);
+};
+
+window.handleSaveAdmin = function(e) {
+  e.preventDefault();
+  const username = $('#adm-username').value.trim().toLowerCase();
+  const name = $('#adm-name').value.trim();
+  const role = $('#adm-role').value;
+  const dept = $('#adm-dept').value.trim();
+  const pw = $('#adm-pw').value;
+  const pwConfirm = $('#adm-pw-confirm').value;
+  const phone = $('#adm-phone').value.trim();
+  const email = $('#adm-email').value.trim();
+  const memo = $('#adm-memo').value.trim();
+
+  if (pw !== pwConfirm) {
+    alert('비밀번호가 일치하지 않습니다. 다시 확인해 주세요.');
+    $('#adm-pw-confirm').focus();
+    return;
+  }
+
+  const admins = Storage.getAdminAccounts();
+  if (admins.some(a => a.username.toLowerCase() === username)) {
+    alert(`이미 존재하는 아이디입니다: ${username}`);
+    $('#adm-username').focus();
+    return;
+  }
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const roleInfo = ADMIN_ROLE_MAP[role] || { label: role };
+
+  const newAdmin = {
+    id: 'ADM-' + Date.now().toString(36),
+    username: username,
+    name: name,
+    role: role,
+    roleName: roleInfo.label,
+    department: dept,
+    phone: phone,
+    email: email,
+    status: 'ACTIVE',
+    createdAt: dateStr,
+    lastLogin: null,
+    memo: memo
+  };
+
+  admins.push(newAdmin);
+  Storage.saveAdminAccounts(admins);
+  Storage.addAdminLog('총괄관리자', 'CREATE', '신규 관리자 등록', `새 관리자 [${name}(${username})] - 권한: ${roleInfo.label}, 부서: ${dept} 생성`);
+
+  closeAdminDialog();
+  renderAdminsTable();
+  renderAdminLogsTable();
+  updateStats();
+  showAdminToast(`신규 관리자 [${name}] 계정이 생성되었습니다.`);
+};
+
+// Modal: Edit Admin
+window.openEditAdminModal = function(id) {
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  const html = `
+    <span class="eyebrow blue">계정 정보 변경</span>
+    <h2>관리자 정보 수정</h2>
+    <p><strong>${adm.name}</strong> (${adm.username}) 계정의 역할과 세부 정보를 수정합니다.</p>
+
+    <form onsubmit="handleUpdateAdmin(event, '${adm.id}')" style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>로그인 아이디 (변경불가)</label>
+          <input type="text" value="${adm.username}" readonly style="background:#f1f5f9;color:#64748b;font-family:monospace;font-weight:700;">
+        </div>
+        <div class="form-group">
+          <label>관리자 성명 <span class="required">*</span></label>
+          <input type="text" id="edit-adm-name" value="${adm.name}" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>권한 등급 <span class="required">*</span></label>
+          <select id="edit-adm-role" required ${adm.role === 'SUPER_ADMIN' ? 'disabled title="최고 관리자의 권한은 변경할 수 없습니다."' : ''}>
+            <option value="OP_ADMIN" ${adm.role === 'OP_ADMIN' ? 'selected' : ''}>운영 관리자 (숙박/상품 전담)</option>
+            <option value="CS_ADMIN" ${adm.role === 'CS_ADMIN' ? 'selected' : ''}>CS 상담관리자 (예약/상담 처리)</option>
+            <option value="BRANCH_ADMIN" ${adm.role === 'BRANCH_ADMIN' ? 'selected' : ''}>지사 관리자 (쿠폰 대역 발급)</option>
+            <option value="VIEWER_ADMIN" ${adm.role === 'VIEWER_ADMIN' ? 'selected' : ''}>조회 전용 (모니터링/감사)</option>
+            <option value="SUPER_ADMIN" ${adm.role === 'SUPER_ADMIN' ? 'selected' : ''}>최고 관리자 (마스터 권한)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>소속 부서 / 지사 <span class="required">*</span></label>
+          <input type="text" id="edit-adm-dept" value="${adm.department || ''}" required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>휴대폰 번호 <span class="required">*</span></label>
+          <input type="tel" id="edit-adm-phone" value="${adm.phone || ''}" oninput="this.value = autoHyphenPhone(this.value)" required>
+        </div>
+        <div class="form-group">
+          <label>이메일 주소 <span class="required">*</span></label>
+          <input type="email" id="edit-adm-email" value="${adm.email || ''}" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>계정 상태</label>
+        <select id="edit-adm-status" ${adm.role === 'SUPER_ADMIN' ? 'disabled' : ''}>
+          <option value="ACTIVE" ${adm.status === 'ACTIVE' ? 'selected' : ''}>활성 (정상 로그인 가능)</option>
+          <option value="INACTIVE" ${adm.status === 'INACTIVE' ? 'selected' : ''}>일시정지 (접근 차단)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>관리자 비고 / 메모</label>
+        <textarea id="edit-adm-memo" rows="2">${adm.memo || ''}</textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeAdminDialog()">취소</button>
+        <button type="submit" class="btn-submit-reserve">변경사항 저장</button>
+      </div>
+    </form>
+  `;
+  openAdminDialog(html);
+};
+
+window.handleUpdateAdmin = function(e, id) {
+  e.preventDefault();
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  const name = $('#edit-adm-name').value.trim();
+  const roleEl = $('#edit-adm-role');
+  const role = roleEl ? roleEl.value : adm.role;
+  const dept = $('#edit-adm-dept').value.trim();
+  const phone = $('#edit-adm-phone').value.trim();
+  const email = $('#edit-adm-email').value.trim();
+  const statusEl = $('#edit-adm-status');
+  const status = statusEl ? statusEl.value : adm.status;
+  const memo = $('#edit-adm-memo').value.trim();
+
+  const roleInfo = ADMIN_ROLE_MAP[role] || { label: role };
+
+  adm.name = name;
+  adm.role = role;
+  adm.roleName = roleInfo.label;
+  adm.department = dept;
+  adm.phone = phone;
+  adm.email = email;
+  adm.status = status;
+  adm.memo = memo;
+
+  Storage.saveAdminAccounts(admins);
+  Storage.addAdminLog('총괄관리자', 'UPDATE', '관리자 정보 수정', `관리자 [${adm.name}(${adm.username})] 정보 및 역할(${roleInfo.label}) 갱신`);
+
+  closeAdminDialog();
+  renderAdminsTable();
+  renderAdminLogsTable();
+  updateStats();
+  showAdminToast(`[${adm.name}] 관리자 정보가 수정되었습니다.`);
+};
+
+// Modal: Reset Password
+window.openResetAdminPasswordModal = function(id) {
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  const html = `
+    <span class="eyebrow blue">보안 관리</span>
+    <h2>관리자 비밀번호 재설정</h2>
+    <p>관리자 <strong>${adm.name}</strong> (아이디: <code>${adm.username}</code>)의 새로운 비밀번호를 설정합니다.</p>
+
+    <form onsubmit="handleResetAdminPassword(event, '${adm.id}')" style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
+      <div class="form-group">
+        <label>신규 비밀번호 <span class="required">*</span></label>
+        <input type="password" id="reset-pw" placeholder="새로운 비밀번호 (6자 이상)" minlength="6" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label>신규 비밀번호 확인 <span class="required">*</span></label>
+        <input type="password" id="reset-pw-confirm" placeholder="새로운 비밀번호 재입력" minlength="6" required>
+      </div>
+
+      <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:6px;font-size:12px;color:#991b1b;line-height:1.5;">
+        ⚠️ 비밀번호를 재설정하면 기존 세션은 즉시 무효화되며 새 비밀번호로 로그인해야 합니다.
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeAdminDialog()">취소</button>
+        <button type="submit" class="btn-submit-reserve" style="background:#dc2626;">비밀번호 변경 완료</button>
+      </div>
+    </form>
+  `;
+  openAdminDialog(html);
+};
+
+window.handleResetAdminPassword = function(e, id) {
+  e.preventDefault();
+  const pw = $('#reset-pw').value;
+  const pwConfirm = $('#reset-pw-confirm').value;
+
+  if (pw !== pwConfirm) {
+    alert('새 비밀번호가 일치하지 않습니다.');
+    $('#reset-pw-confirm').focus();
+    return;
+  }
+
+  const admins = Storage.getAdminAccounts();
+  const adm = admins.find(a => a.id === id);
+  if (!adm) return;
+
+  Storage.addAdminLog('총괄관리자', 'PW_RESET', '비밀번호 재설정', `관리자 [${adm.name}(${adm.username})]의 비밀번호 보안 재설정 완료`);
+
+  closeAdminDialog();
+  renderAdminLogsTable();
+  showAdminToast(`[${adm.name}] 관리자의 비밀번호가 성공적으로 재설정되었습니다.`);
 };
 
 // Admin Init
@@ -1238,7 +1603,4 @@ window.addEventListener('DOMContentLoaded', () => {
   initTabs();
   updateStats();
   renderHotelsTable();
-  if (window.updateConvexUIState) {
-    updateConvexUIState();
-  }
 });

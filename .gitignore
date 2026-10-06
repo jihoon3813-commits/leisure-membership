@@ -4,3 +4,8 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+.env.local
+.agents/
+.claude/
+skills-lock.json

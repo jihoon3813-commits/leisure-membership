@@ -402,11 +402,6 @@
           <span>관리자 계정 관리</span>
           <span class="admin-nav-badge" id="badge-admin-count" style="background:#4338ca;">5</span>
         </div>
-        <div class="admin-nav-item" data-tab="convex">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
-          <span>Convex 클라우드 DB</span>
-          <span class="admin-nav-badge" id="badge-convex-status" style="background:#0284c7;">클라우드</span>
-        </div>
       </nav>
 
       <div class="admin-sidebar-footer">
@@ -835,60 +830,6 @@
 
       </div>
 
-      <!-- Convex Tab Panel -->
-      <div id="pane-convex" class="tab-pane" style="display:none;">
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <div>
-              <h3 class="admin-card-title">Convex 실시간 클라우드 데이터베이스 연동</h3>
-              <p style="font-size:12px;color:#64748b;margin:4px 0 0;">로컬 브라우저 저장소(localStorage) 대신 전역 실시간 동기화되는 Convex 백엔드와 연결합니다.</p>
-            </div>
-            <span class="status-badge" id="convex-connection-pill" style="background:#e2e8f0;color:#475569;font-size:12px;padding:6px 12px;">확인 중...</span>
-          </div>
-
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin-bottom:24px;">
-            <label style="display:block;font-size:13px;font-weight:700;color:#1e293b;margin-bottom:8px;">Convex Deployment URL</label>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <input type="url" id="convex-url-input" class="search-input" style="flex:1;" placeholder="예: https://gentle-gazelle-123.convex.cloud" />
-              <button class="btn-admin-primary" onclick="saveConvexUrl()">저장 및 연결 테스트</button>
-              <button class="btn-admin-secondary" onclick="disconnectConvex()">연결 해제 (로컬 모드)</button>
-            </div>
-            <p style="font-size:12px;color:#64748b;margin:8px 0 0;">
-              * 터미널에서 <code>npx convex dev</code> 명령어를 실행하면 발급되는 Dev Deployment URL을 복사하여 입력해 주세요.
-            </p>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-              <h4 style="font-size:14px;font-weight:700;margin-bottom:8px;color:#0f172a;">1. 기존 로컬 데이터를 Convex로 이전 (시딩)</h4>
-              <p style="font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.5;">
-                현재 등록된 숙박시설(48개) 및 생성된 쿠폰 데이터를 Convex 클라우드 데이터베이스에 일괄 업로드합니다.
-              </p>
-              <button class="btn-admin-primary" id="btn-seed-convex" onclick="seedToConvex()">
-                🚀 Convex로 전체 데이터 업로드
-              </button>
-            </div>
-
-            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-              <h4 style="font-size:14px;font-weight:700;margin-bottom:8px;color:#0f172a;">2. Convex 클라우드 데이터 불러오기</h4>
-              <p style="font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.5;">
-                Convex DB에 저장된 호텔, 쿠폰, 예약 및 문의 내역을 불러와 화면에 동기화합니다.
-              </p>
-              <button class="btn-admin-secondary" id="btn-pull-convex" onclick="syncFromConvexUI()">
-                🔄 Convex 데이터 즉시 동기화
-              </button>
-            </div>
-          </div>
-
-          <div style="background:#1e293b; color:#f8fafc; border-radius:8px; padding:16px; font-family:monospace; font-size:12px;">
-            <div style="color:#38bdf8; font-weight:bold; margin-bottom:8px;">💡 Convex 연동 상태 로그:</div>
-            <div id="convex-log-box" style="max-height:180px; overflow-y:auto; line-height:1.6; color:#cbd5e1;">
-              Convex 클라이언트 준비 완료.
-            </div>
-          </div>
-        </div>
-      </div>
-
     </main>
   </div>
 
@@ -918,7 +859,6 @@
     </defs>
   </svg>
 
-  <script src="convex-client.js"></script>
   <script src="data.js"></script>
   <script src="admin.js"></script>
 </body>
