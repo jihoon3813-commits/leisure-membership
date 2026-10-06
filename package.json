@@ -5,7 +5,9 @@
   "main": "dev-server.js",
   "scripts": {
     "dev": "node dev-server.js",
-    "start": "node dev-server.js"
+    "start": "node dev-server.js",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy"
   },
   "keywords": [
     "hd-one-lounge",
@@ -14,5 +16,8 @@
     "reservation"
   ],
   "author": "HD ONE LOUNGE",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "convex": "^1.46.0"
+  }
 }

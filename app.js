@@ -843,6 +843,9 @@ window.handleReserveSubmit = function(e, hotelId) {
   const reservations = Storage.getReservations();
   reservations.unshift(newReservation);
   Storage.saveReservations(reservations);
+  if (Storage.syncReservationToConvex) {
+    Storage.syncReservationToConvex(newReservation);
+  }
 
   closeDialog();
   showToast(`[${item.name}] 예약 신청이 완료되었습니다!${appliedCount > 0 ? ` (숙박 쿠폰 ${appliedCount}장 무료 적용)` : ''}`);
@@ -1176,6 +1179,14 @@ window.handleInquirySubmit = function(e) {
     memo: ''
   });
   Storage.saveInquiries(inquiries);
+  if (Storage.syncInquiryToConvex) {
+    Storage.syncInquiryToConvex({
+      name,
+      phone,
+      title: `${category} 상담 신청 (${time})`,
+      content
+    });
+  }
 
   closeDialog();
   showToast('상담 신청이 완료되었습니다. 담당자가 신속히 연락드리겠습니다.');

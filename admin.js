@@ -70,7 +70,9 @@ function switchTab(tab) {
     coupons: { title: '쿠폰 대역·발급 관리', sub: 'HD1-ABCD-X1A0002~5000 쿠폰 발급처 지정, 사용 현황 실시간 조회' },
     reservations: { title: '숙박 예약 신청 관리', sub: '고객 예약 신청건 확인, 주소/요청사항 조회 및 예약 확정 처리' },
     inquiries: { title: '1:1 맞춤 상담 내역', sub: '고객 맞춤 일정/여행 상담 문의 확인 및 상태 관리' },
-    'other-products': { title: '기타 카테고리 상품 관리', sub: '펜션·풀빌라, 레저·티켓, 여행 상품 직접 등록 및 관리' }
+    'other-products': { title: '기타 카테고리 상품 관리', sub: '펜션·풀빌라, 레저·티켓, 여행 상품 직접 등록 및 관리' },
+    admins: { title: '관리자 계정 관리', sub: '시스템 접근 권한 관리, 신규 관리자 생성, 권한 부여 및 보안 감사 로그' },
+    convex: { title: 'Convex 실시간 클라우드 DB 연동', sub: '전역 실시간 동기화되는 Convex 백엔드 연결 및 데이터 마이그레이션' }
   };
 
   $('#tab-title').textContent = titles[tab]?.title || '관리자';
@@ -83,6 +85,8 @@ function switchTab(tab) {
     headerActions.innerHTML = `<button class="btn-admin-primary" onclick="$('#alloc-start').focus()">+ 쿠폰 대역 발급</button>`;
   } else if (tab === 'other-products') {
     headerActions.innerHTML = `<button class="btn-admin-primary" onclick="openAddOtherModal()">+ 기타 상품 등록</button>`;
+  } else if (tab === 'admins') {
+    headerActions.innerHTML = `<button class="btn-admin-primary" onclick="openAddAdminModal()">+ 신규 관리자 등록</button>`;
   } else {
     headerActions.innerHTML = '';
   }
@@ -100,6 +104,10 @@ function refreshCurrentTab() {
   if (AdminState.currentTab === 'reservations') renderReservationsTable();
   if (AdminState.currentTab === 'inquiries') renderInquiriesTable();
   if (AdminState.currentTab === 'other-products') renderOtherProductsTable();
+  if (AdminState.currentTab === 'admins') {
+    renderAdminsTable();
+    renderAdminLogsTable();
+  }
 }
 
 // Update Overview Stats
@@ -109,6 +117,8 @@ function updateStats() {
   const reservations = Storage.getReservations();
   const inquiries = Storage.getInquiries();
   const others = Storage.getOtherProducts();
+  const admins = Storage.getAdminAccounts ? Storage.getAdminAccounts() : [];
+  const adminLogs = Storage.getAdminLogs ? Storage.getAdminLogs() : [];
 
   const mainCount = hotels.filter(h => h.isMain).length;
   const notIssuedCoupons = coupons.filter(c => c.status === 'NOT_ISSUED').length;
@@ -142,6 +152,17 @@ function updateStats() {
   $('#badge-res-count').textContent = reservations.length;
   $('#badge-inq-count').textContent = inquiries.length;
   $('#badge-other-count').textContent = others.length;
+  const badgeAdmin = $('#badge-admin-count');
+  if (badgeAdmin) badgeAdmin.textContent = admins.length;
+
+  const statAdminTotal = $('#admin-stat-total');
+  const statAdminActive = $('#admin-stat-active');
+  const statAdminSuper = $('#admin-stat-super');
+  const statAdminLogs = $('#admin-stat-logs');
+  if (statAdminTotal) statAdminTotal.textContent = admins.length;
+  if (statAdminActive) statAdminActive.textContent = admins.filter(a => a.status === 'ACTIVE').length;
+  if (statAdminSuper) statAdminSuper.textContent = admins.filter(a => a.role === 'SUPER_ADMIN').length;
+  if (statAdminLogs) statAdminLogs.textContent = adminLogs.length;
 }
 
 // ========================================================
@@ -1049,9 +1070,175 @@ window.deleteOtherProduct = function(id) {
   showAdminToast('상품이 삭제되었습니다.');
 };
 
+// Convex Cloud DB Integration Controls
+function logConvex(msg) {
+  const box = $('#convex-log-box');
+  if (!box) return;
+  const time = new Date().toLocaleTimeString('ko-KR');
+  box.innerHTML += `<div>[${time}] ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+window.updateConvexUIState = async function() {
+  const input = $('#convex-url-input');
+  const pill = $('#convex-connection-pill');
+  const badge = $('#badge-convex-status');
+  const url = window.ConvexService ? ConvexService.getUrl() : '';
+
+  if (input) input.value = url || '';
+
+  if (!url) {
+    if (pill) {
+      pill.textContent = '로컬 모드 (미연결)';
+      pill.style.background = '#e2e8f0';
+      pill.style.color = '#64748b';
+    }
+    if (badge) {
+      badge.textContent = '로컬';
+      badge.style.background = '#64748b';
+    }
+    return;
+  }
+
+  if (pill) {
+    pill.textContent = '연결 확인 중...';
+    pill.style.background = '#fef3c7';
+    pill.style.color = '#b45309';
+  }
+
+  try {
+    const list = await ConvexService.query('hotels:list', {});
+    if (pill) {
+      pill.textContent = `연결됨 (호텔 ${list.length}개)`;
+      pill.style.background = '#dcfce7';
+      pill.style.color = '#15803d';
+    }
+    if (badge) {
+      badge.textContent = '연결됨';
+      badge.style.background = '#16a34a';
+    }
+    logConvex(`✅ Convex 연결 정상 확인 (총 ${list.length}개 상품 감지됨)`);
+  } catch (err) {
+    if (pill) {
+      pill.textContent = '연결 실패 (URL 확인 필요)';
+      pill.style.background = '#fee2e2';
+      pill.style.color = '#b91c1c';
+    }
+    if (badge) {
+      badge.textContent = '오류';
+      badge.style.background = '#dc2626';
+    }
+    logConvex(`⚠️ Convex 연결 실패: ${err.message}`);
+  }
+};
+
+window.saveConvexUrl = async function() {
+  const input = $('#convex-url-input');
+  if (!input) return;
+  const rawUrl = input.value.trim();
+  if (!rawUrl) {
+    alert('Convex 배포 URL을 입력해 주세요.');
+    return;
+  }
+
+  ConvexService.setUrl(rawUrl);
+  logConvex(`🔗 배포 URL 저장: ${rawUrl}`);
+  showAdminToast('배포 URL을 저장했습니다. 연결 테스트 중...');
+  await updateConvexUIState();
+};
+
+window.disconnectConvex = function() {
+  if (!confirm('Convex 연결을 해제하고 로컬 저장소 모드로 전환하시겠습니까?')) return;
+  ConvexService.setUrl('');
+  updateConvexUIState();
+  logConvex('🔌 Convex 연결 해제됨. 로컬 스토리지 모드로 전환되었습니다.');
+  showAdminToast('로컬 모드로 전환되었습니다.');
+};
+
+window.seedToConvex = async function() {
+  if (!ConvexService.isConnected()) {
+    alert('먼저 Convex 배포 URL을 등록해 주세요.');
+    return;
+  }
+
+  const btn = $('#btn-seed-convex');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ 업로드 진행 중...';
+  }
+
+  try {
+    logConvex('🚀 로컬 숙박시설 및 쿠폰 데이터 Convex 업로드 시작...');
+    const hotels = Storage.getHotels();
+    const coupons = Storage.getCoupons();
+
+    const res = await ConvexService.seedInitialData(hotels, coupons);
+    logConvex(`🎉 업로드 성공! 호텔: ${res.hotelsCount || 0}개, 쿠폰: ${res.couponsCount || 0}개 업로드 완료.`);
+    showAdminToast(`업로드 완료! (호텔: ${res.hotelsCount || 0}건)`);
+    await updateConvexUIState();
+  } catch (err) {
+    logConvex(`❌ 업로드 실패: ${err.message}`);
+    alert(`업로드 실패: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🚀 Convex로 전체 데이터 업로드';
+    }
+  }
+};
+
+window.syncFromConvexUI = async function() {
+  if (!ConvexService.isConnected()) {
+    alert('먼저 Convex 배포 URL을 등록해 주세요.');
+    return;
+  }
+
+  const btn = $('#btn-pull-convex');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ 동기화 중...';
+  }
+
+  try {
+    logConvex('🔄 Convex 클라우드에서 데이터 가져오는 중...');
+    const hotels = await ConvexService.query('hotels:list', {});
+    if (hotels && hotels.length > 0) {
+      Storage.saveHotels(hotels);
+      logConvex(`✅ 숙박시설 ${hotels.length}개 동기화 완료.`);
+    }
+
+    const reservations = await ConvexService.query('reservations:list', {});
+    if (reservations) {
+      Storage.saveReservations(reservations);
+      logConvex(`✅ 예약 내역 ${reservations.length}개 동기화 완료.`);
+    }
+
+    const inquiries = await ConvexService.query('inquiries:list', {});
+    if (inquiries) {
+      Storage.saveInquiries(inquiries);
+      logConvex(`✅ 상담 문의 내역 ${inquiries.length}개 동기화 완료.`);
+    }
+
+    refreshCurrentTab();
+    updateStats();
+    showAdminToast('Convex 클라우드 동기화 완료!');
+  } catch (err) {
+    logConvex(`❌ 동기화 실패: ${err.message}`);
+    alert(`동기화 실패: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Convex 데이터 즉시 동기화';
+    }
+  }
+};
+
 // Admin Init
 window.addEventListener('DOMContentLoaded', () => {
   initTabs();
   updateStats();
   renderHotelsTable();
+  if (window.updateConvexUIState) {
+    updateConvexUIState();
+  }
 });

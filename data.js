@@ -1186,6 +1186,118 @@ const DEFAULT_COUPON_ALLOCATIONS = [
   }
 ];
 
+const DEFAULT_ADMIN_ACCOUNTS = [
+  {
+    id: 'ADM-001',
+    username: 'admin',
+    name: '총괄관리자',
+    role: 'SUPER_ADMIN',
+    roleName: '최고 관리자',
+    department: '본사 IT운영총괄',
+    phone: '010-1000-0001',
+    email: 'admin@hdonelounge.com',
+    status: 'ACTIVE',
+    createdAt: '2026-01-01 09:00',
+    lastLogin: '2026-10-06 11:15',
+    memo: '전체 시스템 총괄 및 관리자 권한 제어'
+  },
+  {
+    id: 'ADM-002',
+    username: 'hotel_op',
+    name: '박준영 팀장',
+    role: 'OP_ADMIN',
+    roleName: '운영 관리자',
+    department: '숙박·제휴사업팀',
+    phone: '010-2345-6789',
+    email: 'jypark@hdonelounge.com',
+    status: 'ACTIVE',
+    createdAt: '2026-03-15 10:30',
+    lastLogin: '2026-10-05 17:20',
+    memo: '전국 제휴호텔 요금 및 상품 운영 전담'
+  },
+  {
+    id: 'ADM-003',
+    username: 'cs_lead',
+    name: '이수민 매니저',
+    role: 'CS_ADMIN',
+    roleName: 'CS 상담관리자',
+    department: '고객행복센터',
+    phone: '010-3456-7890',
+    email: 'smlee@hdonelounge.com',
+    status: 'ACTIVE',
+    createdAt: '2026-05-20 14:10',
+    lastLogin: '2026-10-06 09:45',
+    memo: '고객 예약 승인 및 1:1 상담 처리'
+  },
+  {
+    id: 'ADM-004',
+    username: 'gangnam_mgr',
+    name: '최강남 지사장',
+    role: 'BRANCH_ADMIN',
+    roleName: '지사 관리자',
+    department: '강남서초 지사',
+    phone: '010-7788-9900',
+    email: 'gangnam@hdonelounge.com',
+    status: 'ACTIVE',
+    createdAt: '2026-08-01 11:00',
+    lastLogin: '2026-10-04 15:30',
+    memo: '강남서초 지역 쿠폰 대역 발급 및 고객 배포 관리'
+  },
+  {
+    id: 'ADM-005',
+    username: 'audit_temp',
+    name: '정윤호 연구원',
+    role: 'VIEWER_ADMIN',
+    roleName: '조회 전용',
+    department: '외부 회계감사팀',
+    phone: '010-5566-7788',
+    email: 'audit@accounting.co.kr',
+    status: 'INACTIVE',
+    createdAt: '2026-09-01 13:00',
+    lastLogin: '2026-09-28 16:10',
+    memo: '분기 정산 감사용 임시 조회 계정 (사용 중지)'
+  }
+];
+
+const DEFAULT_ADMIN_LOGS = [
+  {
+    id: 'LOG-001',
+    adminId: 'admin',
+    adminName: '총괄관리자',
+    action: 'LOGIN',
+    actionName: '관리자 콘솔 로그인',
+    details: 'IP 121.134.82.11 - 관리자 콘솔 정상 접속',
+    createdAt: '2026-10-06 11:00:22'
+  },
+  {
+    id: 'LOG-002',
+    adminId: 'hotel_op',
+    adminName: '박준영 팀장',
+    action: 'PRICE_UPDATE',
+    actionName: '숙박시설 요금 일괄 변경',
+    details: '인천 지역 숙박시설 4개 정가 200,000원 / 쿠폰가 19,000원 적용',
+    createdAt: '2026-10-05 16:30:15'
+  },
+  {
+    id: 'LOG-003',
+    adminId: 'cs_lead',
+    adminName: '이수민 매니저',
+    action: 'RES_CONFIRM',
+    actionName: '숙박 예약 승인',
+    details: '예약번호 RES-20260920-001 (김철수) 예약 확정 처리',
+    createdAt: '2026-10-05 14:12:00'
+  },
+  {
+    id: 'LOG-004',
+    adminId: 'gangnam_mgr',
+    adminName: '최강남 지사장',
+    action: 'COUPON_ALLOC',
+    actionName: '쿠폰 대역 일괄 발급',
+    details: '강남서초 지사 1602~2101번 (500매) 발급 등록',
+    createdAt: '2026-10-04 10:15:30'
+  }
+];
+
 // Local Storage Manager
 const Storage = {
   KEYS: {
@@ -1197,7 +1309,9 @@ const Storage = {
     INQUIRIES: 'hd_one_inquiries_v3',
     CURRENT_USER: 'hd_one_user_v3',
     USERS: 'hd_one_users_v3',
-    DEFAULT_HOTEL_PRICE: 'hd_one_default_price_v3'
+    DEFAULT_HOTEL_PRICE: 'hd_one_default_price_v3',
+    ADMIN_ACCOUNTS: 'hd_one_admins_v3',
+    ADMIN_LOGS: 'hd_one_admin_logs_v3'
   },
 
   init() {
@@ -1316,6 +1430,12 @@ const Storage = {
         }
       ]));
     }
+    if (!localStorage.getItem(this.KEYS.ADMIN_ACCOUNTS)) {
+      localStorage.setItem(this.KEYS.ADMIN_ACCOUNTS, JSON.stringify(DEFAULT_ADMIN_ACCOUNTS));
+    }
+    if (!localStorage.getItem(this.KEYS.ADMIN_LOGS)) {
+      localStorage.setItem(this.KEYS.ADMIN_LOGS, JSON.stringify(DEFAULT_ADMIN_LOGS));
+    }
     if (!localStorage.getItem(this.KEYS.CURRENT_USER)) {
       // Default demo guest or demo member
       localStorage.setItem(this.KEYS.CURRENT_USER, JSON.stringify({
@@ -1399,6 +1519,45 @@ const Storage = {
     localStorage.setItem(this.KEYS.INQUIRIES, JSON.stringify(list));
   },
 
+  getAdminAccounts() {
+    try {
+      return JSON.parse(localStorage.getItem(this.KEYS.ADMIN_ACCOUNTS)) || DEFAULT_ADMIN_ACCOUNTS;
+    } catch {
+      return DEFAULT_ADMIN_ACCOUNTS;
+    }
+  },
+  saveAdminAccounts(list) {
+    localStorage.setItem(this.KEYS.ADMIN_ACCOUNTS, JSON.stringify(list));
+  },
+
+  getAdminLogs() {
+    try {
+      return JSON.parse(localStorage.getItem(this.KEYS.ADMIN_LOGS)) || DEFAULT_ADMIN_LOGS;
+    } catch {
+      return DEFAULT_ADMIN_LOGS;
+    }
+  },
+  saveAdminLogs(list) {
+    localStorage.setItem(this.KEYS.ADMIN_LOGS, JSON.stringify(list));
+  },
+  addAdminLog(adminName, action, actionName, details) {
+    const logs = this.getAdminLogs();
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    logs.unshift({
+      id: 'LOG-' + Date.now().toString(36),
+      adminId: 'admin',
+      adminName: adminName || '총괄관리자',
+      action: action || 'UPDATE',
+      actionName: actionName || '시스템 작업',
+      details: details || '',
+      createdAt: timeStr
+    });
+    if (logs.length > 100) logs.length = 100;
+    this.saveAdminLogs(logs);
+  },
+
   getCurrentUser() {
     try {
       return JSON.parse(localStorage.getItem(this.KEYS.CURRENT_USER));
@@ -1412,7 +1571,75 @@ const Storage = {
     } else {
       localStorage.removeItem(this.KEYS.CURRENT_USER);
     }
+  },
+
+  // Convex Cloud Sync Helpers
+  async syncFromConvex() {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
+    try {
+      const hotels = await ConvexService.query('hotels:list', {});
+      if (hotels && hotels.length > 0) {
+        this.saveHotels(hotels);
+      }
+      const reservations = await ConvexService.query('reservations:list', {});
+      if (reservations) {
+        this.saveReservations(reservations);
+      }
+      const inquiries = await ConvexService.query('inquiries:list', {});
+      if (inquiries) {
+        this.saveInquiries(inquiries);
+      }
+      return true;
+    } catch (e) {
+      console.warn('Convex sync error:', e);
+      return false;
+    }
+  },
+
+  async syncReservationToConvex(res) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('reservations:create', {
+        hotelId: String(res.hotelId || ''),
+        hotelName: String(res.hotelName || ''),
+        userName: String(res.userName || ''),
+        userPhone: String(res.phone || res.userPhone || ''),
+        couponCode: String(res.couponCode || ''),
+        checkIn: String(res.checkIn || ''),
+        checkOut: String(res.checkOut || ''),
+        guests: Number(res.adults || 1) + Number(res.children || 0),
+        requestMemo: res.requests || undefined,
+      });
+      console.log('✅ Convex reservation synced:', res.id);
+    } catch (e) {
+      console.warn('Convex reservation sync warning:', e);
+    }
+  },
+
+  async syncInquiryToConvex(inq) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('inquiries:create', {
+        name: String(inq.name || ''),
+        phone: String(inq.phone || ''),
+        title: String(inq.title || inq.type || '상담 문의'),
+        content: String(inq.content || ''),
+      });
+      console.log('✅ Convex inquiry synced:', inq.id);
+    } catch (e) {
+      console.warn('Convex inquiry sync warning:', e);
+    }
   }
 };
 
 Storage.init();
+
+// Convex 자동 동기화 시도 (연결되어 있을 시)
+if (typeof window !== 'undefined') {
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof Storage !== 'undefined' && Storage.syncFromConvex) {
+      Storage.syncFromConvex();
+    }
+  });
+}
+
