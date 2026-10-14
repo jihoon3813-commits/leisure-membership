@@ -142,11 +142,15 @@ window.logoutUser = function() {
   Storage.setCurrentUser(null);
   updateMemberStripUI();
   updateUserHeaderUI();
+  renderCatalog();
   showToast('안전하게 로그아웃되었습니다.');
 };
 
 // Catalog Rendering
 function renderCatalog() {
+  const user = Storage.getCurrentUser();
+  const isLoggedIn = Boolean(user && user.isLoggedIn);
+
   const hotels = Storage.getHotels();
   const others = Storage.getOtherProducts();
   let all = [...hotels, ...others];
@@ -259,9 +263,13 @@ function renderCatalog() {
           <p class="desc">${p.desc || p.location + '에 위치한 프리미엄 스테이'}</p>
           
           <div class="price-line">
-            <span class="discount">${p.discount || 30}%</span>
-            <strong>${Money(p.price)}원</strong>
-            <small>부터</small>
+            ${isLoggedIn ? `
+              <span class="discount">${p.discount || 30}%</span>
+              <strong>${Money(p.price)}원</strong>
+              <small>부터</small>
+            ` : `
+              <strong class="member-price-highlight">회원가 적용</strong>
+            `}
           </div>
           <p class="original">${Money(p.originalPrice || Math.round(p.price * 1.45))}원</p>
 
@@ -1006,6 +1014,7 @@ window.handleSignupSubmit = function(e) {
   closeDialog();
   updateMemberStripUI();
   updateUserHeaderUI();
+  renderCatalog();
   showToast(`[${name}] 님, 회원가입이 완료되었습니다! 환영합니다.`);
 };
 
@@ -1015,7 +1024,16 @@ window.openLoginDialog = function() {
     <h2>에이치디원 라운지 로그인</h2>
     <p>가입하신 이메일과 비밀번호로 로그인해주세요.</p>
 
-    <form onsubmit="handleLoginSubmit(event)" style="display:flex;flex-direction:column;gap:14px;margin-top:18px;">
+    <!-- 체험용 데모 계정 안내 및 원클릭 로그인 -->
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div style="font-size:12px;color:#475569;line-height:1.4;">
+        <strong style="color:var(--navy);">💡 VIP 체험 계정</strong> (홍길동 회원님)<br>
+        <span style="color:#64748b;font-size:11px;">vip@hdone.kr / 1234</span>
+      </div>
+      <button type="button" class="btn-addr" onclick="quickDemoLogin()" style="padding:6px 12px;font-size:11.5px;white-space:nowrap;font-weight:700;">원클릭 로그인</button>
+    </div>
+
+    <form onsubmit="handleLoginSubmit(event)" style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
       <div class="form-group">
         <label for="login-email">이메일 계정 <span class="required">*</span></label>
         <input type="email" id="login-email" placeholder="example@email.com" required>
@@ -1041,8 +1059,15 @@ window.openLoginDialog = function() {
   openDialog(html);
 };
 
+window.quickDemoLogin = function() {
+  $('#login-email').value = 'vip@hdone.kr';
+  $('#login-pw').value = '1234';
+  const fakeEvent = { preventDefault: () => {} };
+  handleLoginSubmit(fakeEvent);
+};
+
 window.handleLoginSubmit = function(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   const email = $('#login-email').value.trim().toLowerCase();
   const pw = $('#login-pw').value;
 
@@ -1065,6 +1090,7 @@ window.handleLoginSubmit = function(e) {
     closeDialog();
     updateMemberStripUI();
     updateUserHeaderUI();
+    renderCatalog();
     showToast('홍길동 VIP 회원님으로 로그인되었습니다.');
     return;
   }
@@ -1091,6 +1117,7 @@ window.handleLoginSubmit = function(e) {
   closeDialog();
   updateMemberStripUI();
   updateUserHeaderUI();
+  renderCatalog();
   showToast(`${matched.name} 회원님, 반갑습니다!`);
 };
 

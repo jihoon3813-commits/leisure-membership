@@ -564,6 +564,12 @@ h2 {
 }
 .price-line { display: flex; align-items: baseline; gap: 7px; }
 .price-line strong { font-size: 19px; letter-spacing: -0.04em; font-weight: 800; color: var(--navy); }
+.price-line strong.member-price-highlight {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: -0.03em;
+}
 .price-line .discount { color: var(--blue); font-size: 17px; font-weight: 800; }
 .price-line small { font-size: 11px; color: #8a939c; }
 .original {

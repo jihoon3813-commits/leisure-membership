@@ -1442,16 +1442,13 @@ const Storage = {
     if (!localStorage.getItem(this.KEYS.ADMIN_LOGS)) {
       localStorage.setItem(this.KEYS.ADMIN_LOGS, JSON.stringify(DEFAULT_ADMIN_LOGS));
     }
-    if (!localStorage.getItem(this.KEYS.CURRENT_USER)) {
-      // Default demo guest or demo member
-      localStorage.setItem(this.KEYS.CURRENT_USER, JSON.stringify({
-        isLoggedIn: true,
-        name: '홍길동',
-        phone: '010-1234-5678',
-        couponCode: 'HD1-ABCD-X1A1602',
-        branch: '강남서초',
-        membershipGrade: 'PREMIUM VIP'
-      }));
+    // 기본은 로그아웃 상태로 설정 (기존 브라우저에 남아있던 데모 계정도 1회 초기화)
+    if (!localStorage.getItem('hdone_default_logout_v1')) {
+      const existingUser = this.getCurrentUser();
+      if (existingUser && (existingUser.name === '홍길동' || existingUser.phone === '010-1234-5678' || existingUser.email === 'vip@hdone.kr')) {
+        localStorage.removeItem(this.KEYS.CURRENT_USER);
+      }
+      localStorage.setItem('hdone_default_logout_v1', 'true');
     }
   },
 
