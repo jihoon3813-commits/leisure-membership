@@ -458,22 +458,66 @@ function openHotelFormModal(item) {
   renderImagePreviews();
 }
 
-// Handle File Upload to Base64
-window.handleFileUpload = function(e) {
-  const files = e.target.files;
-  if (!files || files.length === 0) return;
-
-  Array.from(files).forEach(file => {
-    if (AdminState.uploadedImages.length >= 3) return;
+// 이미지 파일 최적화/압축 (Canvas 기반, 가로 최대 1000px, JPEG 0.75로 수십 KB 압축)
+function compressImageFile(file, maxWidth = 1000, quality = 0.75) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve('assets/resort.jpg');
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = function(evt) {
-      if (AdminState.uploadedImages.length < 3) {
-        AdminState.uploadedImages.push(evt.target.result);
-        renderImagePreviews();
-      }
+    reader.onerror = () => resolve('assets/resort.jpg');
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => resolve(e.target.result);
+      img.onload = () => {
+        try {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch {
+          resolve(e.target.result);
+        }
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
+}
+
+// Handle File Upload to Base64 with automatic compression
+window.handleFileUpload = async function(e) {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+
+  const previewGroup = $('#h-preview-group');
+  if (previewGroup && AdminState.uploadedImages.length === 0) {
+    previewGroup.innerHTML = '<span style="font-size:11px;color:#2563eb;padding:10px 0;display:inline-block;">⚡ 이미지 최적화 및 압축 중...</span>';
+  }
+
+  for (const file of Array.from(files)) {
+    if (AdminState.uploadedImages.length >= 3) break;
+    try {
+      const compressedDataUrl = await compressImageFile(file, 1000, 0.75);
+      if (AdminState.uploadedImages.length < 3) {
+        AdminState.uploadedImages.push(compressedDataUrl);
+      }
+    } catch (err) {
+      console.error('Image compression error:', err);
+    }
+  }
+  renderImagePreviews();
 };
 
 window.addImageUrl = function() {
@@ -519,75 +563,109 @@ function renderImagePreviews() {
 }
 
 // Save Hotel Submit Handler
-window.handleSaveHotel = function(e, id) {
+window.handleSaveHotel = async function(e, id) {
   e.preventDefault();
-  const name = $('#h-name').value.trim();
-  const region = $('#h-region').value;
-  const loc = $('#h-loc').value.trim();
-  const origPrice = parseNumberFromCommas($('#h-orig-price')?.value) || 200000;
-  const price = parseNumberFromCommas($('#h-price')?.value) || 19000;
-  const tag = $('#h-tag').value.trim() || 'LOUNGE PICK';
-  const isMain = $('#h-ismain').value === 'true';
-  const desc = $('#h-desc').value.trim();
+  try {
+    const name = $('#h-name').value.trim();
+    const region = $('#h-region').value;
+    const loc = $('#h-loc').value.trim();
+    const origPrice = parseNumberFromCommas($('#h-orig-price')?.value) || 200000;
+    const price = parseNumberFromCommas($('#h-price')?.value) || 19000;
+    const tag = $('#h-tag').value.trim() || 'LOUNGE PICK';
+    const isMain = $('#h-ismain').value === 'true';
+    const desc = $('#h-desc').value.trim();
 
-  if (!name || !loc || !price) {
-    alert('필수 입력 항목을 모두 작성해주세요.');
-    return;
-  }
-
-  const images = AdminState.uploadedImages.length > 0 ? AdminState.uploadedImages : ['assets/resort.jpg'];
-
-  const hotels = Storage.getHotels();
-
-  if (id) {
-    // Edit existing
-    const item = hotels.find(h => h.id === id);
-    if (item) {
-      item.name = name;
-      item.region = region;
-      item.location = loc;
-      item.originalPrice = origPrice;
-      item.price = price;
-      item.discount = Math.round((1 - price / origPrice) * 100);
-      item.tag = tag;
-      item.isMain = isMain;
-      item.desc = desc;
-      item.images = images;
+    if (!name || !loc || !price) {
+      alert('필수 입력 항목(숙박시설명, 상세주소, 요금)을 모두 작성해주세요.');
+      return;
     }
-  } else {
-    // Create new
-    const newId = 'custom_hotel_' + Date.now().toString(36);
-    hotels.unshift({
-      id: newId,
-      name: name,
-      region: region,
-      location: loc,
-      category: 'hotel',
-      originalPrice: origPrice,
-      price: price,
-      discount: Math.round((1 - price / origPrice) * 100),
-      images: images,
-      tag: tag,
-      isMain: isMain,
-      desc: desc || `${loc}에 위치한 프리미엄 회원 전용 숙박시설`,
-      benefit: '회원 전용 우대 혜택 적용',
-      source: 'custom',
-      rating: 4.9
-    });
-  }
 
-  Storage.saveHotels(hotels);
-  if (Storage.addAdminLog) {
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '저장 처리 중...';
+    }
+
+    const images = AdminState.uploadedImages.length > 0 ? AdminState.uploadedImages : ['assets/resort.jpg'];
+    const hotels = Storage.getHotels();
+
+    let savedHotel = null;
+
     if (id) {
-      Storage.addAdminLog('운영관리자', 'UPDATE', '숙박시설 정보 수정', `[${name}] 시설 정보/요금/사진 수정 완료`);
+      // Edit existing
+      const item = hotels.find(h => h.id === id);
+      if (item) {
+        item.name = name;
+        item.region = region;
+        item.location = loc;
+        item.originalPrice = origPrice;
+        item.price = price;
+        item.discount = Math.round((1 - price / origPrice) * 100);
+        item.tag = tag;
+        item.isMain = isMain;
+        item.desc = desc;
+        item.images = images;
+        savedHotel = item;
+      }
     } else {
-      Storage.addAdminLog('운영관리자', 'CREATE', '숙박시설 신규 등록', `[${name}] 신규 숙박시설 등록 (${region}, 쿠폰가: ${Money(price)}원)`);
+      // Create new
+      const newId = 'custom_hotel_' + Date.now().toString(36);
+      savedHotel = {
+        id: newId,
+        name: name,
+        region: region,
+        location: loc,
+        category: 'hotel',
+        originalPrice: origPrice,
+        price: price,
+        discount: Math.round((1 - price / origPrice) * 100),
+        images: images,
+        tag: tag,
+        isMain: isMain,
+        desc: desc || `${loc}에 위치한 프리미엄 회원 전용 숙박시설`,
+        benefit: '회원 전용 우대 혜택 적용',
+        source: 'custom',
+        rating: 4.9
+      };
+      hotels.unshift(savedHotel);
+    }
+
+    const isSaved = Storage.saveHotels(hotels);
+    if (!isSaved) {
+      alert('브라우저 로컬 저장소 용량이 초과되어 저장하지 못했습니다. 첨부된 이미지 크기를 줄이거나 URL 주소 입력을 이용해주세요.');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = id ? '수정 완료' : '등록하기';
+      }
+      return;
+    }
+
+    // Convex 클라우드 DB 동기화
+    if (savedHotel && Storage.syncHotelToConvex) {
+      Storage.syncHotelToConvex(savedHotel);
+    }
+
+    if (Storage.addAdminLog) {
+      if (id) {
+        Storage.addAdminLog('운영관리자', 'UPDATE', '숙박시설 정보 수정', `[${name}] 시설 정보/요금/사진 수정 완료`);
+      } else {
+        Storage.addAdminLog('운영관리자', 'CREATE', '숙박시설 신규 등록', `[${name}] 신규 숙박시설 등록 (${region}, 쿠폰가: ${Money(price)}원)`);
+      }
+    }
+
+    closeAdminDialog();
+    renderHotelsTable();
+    updateStats();
+    showAdminToast(id ? '숙박시설 정보가 수정되었습니다.' : '새로운 숙박시설이 등록되었습니다!');
+  } catch (err) {
+    console.error('handleSaveHotel failure:', err);
+    alert('숙박시설 등록 중 오류가 발생했습니다: ' + err.message);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = id ? '수정 완료' : '등록하기';
     }
   }
-  closeAdminDialog();
-  renderHotelsTable();
-  updateStats();
-  showAdminToast(id ? '숙박시설 정보가 수정되었습니다.' : '새로운 숙박시설이 등록되었습니다!');
 };
 
 // ========================================================

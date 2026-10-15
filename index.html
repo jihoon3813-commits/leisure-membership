@@ -17,7 +17,7 @@
   <!-- Daum Postcode API -->
   <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261015_03">
 </head>
 <body>
 
@@ -121,6 +121,47 @@
         <span><svg><use href="#gift"/></svg></span>
         멤버십 혜택
       </button>
+    </section>
+
+    <!-- Featured Promotion Banner (지금 머물고 싶은 곳 상단 프리미엄 가로 배너) -->
+    <section class="promo-banner wrap" aria-label="추천 프리미엄 호텔 기획전">
+      <div class="promo-banner-inner" onclick="openReserveModal('gentrify_sl_boutique')">
+        <img class="promo-banner-bg" 
+             src="https://res.cloudinary.com/lyjyvy54/image/upload/v1792068703/%EB%85%B8%EC%9D%84%EB%B9%9B_%EB%B6%80%ED%8B%B0%ED%81%AC_%ED%98%B8%ED%85%94_%EB%A3%A8%ED%94%84%ED%86%B1_%EB%94%94%EB%84%88_izwkkq.png" 
+             alt="[경기/안산] SL 부띠끄 호텔 루프탑 디너" 
+             loading="eager"
+             onerror="this.src='assets/banner_sl_boutique.png'">
+        <div class="promo-banner-overlay"></div>
+        <div class="promo-banner-content">
+          <div class="promo-banner-badge">
+            <span class="pulse-dot"></span>
+            <span>HD SPECIAL CURATION</span>
+            <span class="badge-divider">|</span>
+            <span>경기/안산</span>
+          </div>
+          <h3 class="promo-banner-title">[경기/안산] SL 부띠끄 호텔</h3>
+          <p class="promo-banner-desc">
+            황금빛 노을 아래 펼쳐지는 로맨틱 루프탑 다이닝 & 감성 부티크 스테이.<br>
+            HD ONE LOUNGE 회원만을 위한 특별 우대 혜택으로 잊지 못할 저녁을 경험하세요.
+          </p>
+          <div class="promo-banner-tags">
+            <span>✨ 루프탑 선셋 다이닝</span>
+            <span>🍷 디너 바비큐 & 와인</span>
+            <span>🛏️ 감성 부티크 객실</span>
+            <span>🏷️ 회원 전용 무료/우대</span>
+          </div>
+          <div class="promo-banner-actions">
+            <button type="button" class="promo-btn-primary" onclick="event.stopPropagation(); openReserveModal('gentrify_sl_boutique')">
+              <span>특별 혜택 예약 신청</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><path d="m9 5 7 7-7 7"/></svg>
+            </button>
+            <span class="promo-price-chip">
+              <small>회원 특별가</small>
+              <strong>19,000원~</strong>
+            </span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Discover Catalog Section -->
@@ -290,7 +331,7 @@
 
   <!-- Core App Scripts -->
   <script src="convex-client.js"></script>
-  <script src="data.js"></script>
-  <script src="app.js"></script>
+  <script src="data.js?v=20261015_02"></script>
+  <script src="app.js?v=20261015_02"></script>
 </body>
 </html>

@@ -35,6 +35,27 @@ function autoHyphenCoupon(str) {
 
 const DEFAULT_HOTELS = [
     {
+        "id": "gentrify_sl_boutique",
+        "name": "[경기/안산] SL 부띠끄 호텔",
+        "location": "경기도 안산시 단원구",
+        "region": "서울·경기",
+        "category": "hotel",
+        "price": 19000,
+        "originalPrice": 220000,
+        "discount": 91,
+        "images": [
+            "https://res.cloudinary.com/lyjyvy54/image/upload/v1792068703/%EB%85%B8%EC%9D%84%EB%B9%9B_%EB%B6%80%ED%8B%B0%ED%81%AC_%ED%98%B8%ED%85%94_%EB%A3%A8%ED%94%84%ED%86%B1_%EB%94%94%EB%84%88_izwkkq.png",
+            "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80"
+        ],
+        "tag": "LOUNGE PICK",
+        "isMain": true,
+        "desc": "황금빛 노을 아래 펼쳐지는 로맨틱 루프탑 다이닝과 감성 부티크 프라이빗 스테이",
+        "benefit": "회원 전용 무료/우대 혜택 적용",
+        "source": "gentrify",
+        "rating": 4.9
+    },
+    {
         "id":  "gentrify_1",
         "name":  "[인천/송도] 셀럽스테이호텔",
         "location":  "인천광역시 연수구",
@@ -1450,6 +1471,17 @@ const Storage = {
       }
       localStorage.setItem('hdone_default_logout_v1', 'true');
     }
+
+    // [경기/안산] SL 부띠끄 호텔 등록 보장
+    try {
+      const curHotels = this.getHotels();
+      if (!curHotels.some(h => h.id === 'gentrify_sl_boutique')) {
+        curHotels.unshift(DEFAULT_HOTELS[0]);
+        this.saveHotels(curHotels);
+      }
+    } catch (e) {
+      console.warn('SL Boutique hotel init check error:', e);
+    }
   },
 
   getHotels() {
@@ -1460,7 +1492,22 @@ const Storage = {
     }
   },
   saveHotels(hotels) {
-    localStorage.setItem(this.KEYS.HOTELS, JSON.stringify(hotels));
+    try {
+      localStorage.setItem(this.KEYS.HOTELS, JSON.stringify(hotels));
+      return true;
+    } catch (e) {
+      console.warn('saveHotels QuotaExceeded, attempting auto cleanup of non-essential logs...', e);
+      try {
+        // 관리자 로그나 임시 데이터 정리 후 재시도
+        const logs = this.getAdminLogs().slice(0, 10);
+        localStorage.setItem(this.KEYS.ADMIN_LOGS, JSON.stringify(logs));
+        localStorage.setItem(this.KEYS.HOTELS, JSON.stringify(hotels));
+        return true;
+      } catch (retryErr) {
+        console.error('saveHotels fatal QuotaExceededError:', retryErr);
+        return false;
+      }
+    }
   },
 
   getOtherProducts() {
@@ -1654,6 +1701,32 @@ const Storage = {
       console.log('✅ Convex inquiry synced:', inq.id);
     } catch (e) {
       console.warn('Convex inquiry sync warning:', e);
+    }
+  },
+
+  async syncHotelToConvex(hotel) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('hotels:create', {
+        customId: String(hotel.id || ''),
+        name: String(hotel.name || ''),
+        location: String(hotel.location || ''),
+        region: String(hotel.region || '기타'),
+        category: String(hotel.category || 'hotel'),
+        price: Number(hotel.price) || 19000,
+        originalPrice: Number(hotel.originalPrice) || 200000,
+        discount: Number(hotel.discount) || 0,
+        images: Array.isArray(hotel.images) ? hotel.images : ['assets/resort.jpg'],
+        tag: hotel.tag || 'LOUNGE PICK',
+        isMain: Boolean(hotel.isMain),
+        desc: hotel.desc || '',
+        benefit: hotel.benefit || '회원 전용 우대 혜택 적용',
+        source: 'custom',
+        rating: 4.9
+      });
+      console.log('✅ Convex hotel synced:', hotel.name);
+    } catch (e) {
+      console.warn('Convex hotel sync warning:', e);
     }
   }
 };

@@ -340,8 +340,169 @@ header {
   box-shadow: 0 6px 14px rgba(36, 92, 221, 0.15);
 }
 
+/* Featured Promotion Banner (지금 머물고 싶은 곳 상단 가로 배너) */
+.promo-banner {
+  margin-top: 36px;
+  margin-bottom: 16px;
+}
+.promo-banner-inner {
+  position: relative;
+  width: 100%;
+  min-height: 290px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 14px 38px rgba(15, 26, 40, 0.16);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  isolation: isolate;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.promo-banner-inner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 50px rgba(15, 26, 40, 0.22);
+}
+.promo-banner-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 36%;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 1;
+}
+.promo-banner-inner:hover .promo-banner-bg {
+  transform: scale(1.03);
+}
+.promo-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(12, 22, 36, 0.90) 0%,
+    rgba(15, 26, 40, 0.75) 45%,
+    rgba(15, 26, 40, 0.35) 75%,
+    rgba(15, 26, 40, 0.12) 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+.promo-banner-content {
+  position: relative;
+  z-index: 3;
+  padding: 38px 46px;
+  max-width: 640px;
+  color: #ffffff;
+}
+.promo-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fde68a;
+  margin-bottom: 14px;
+}
+.promo-banner-badge .pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+.promo-banner-badge .badge-divider {
+  color: rgba(255, 255, 255, 0.35);
+}
+.promo-banner-title {
+  font-family: "Pretendard Variable", Pretendard, sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin: 0 0 10px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+.promo-banner-desc {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #e2e8f0;
+  margin: 0 0 18px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.promo-banner-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.promo-banner-tags span {
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  color: #f8fafc;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.promo-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.promo-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #c5a059 0%, #b38e44 100%);
+  color: #0f1a28;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.35);
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.promo-btn-primary:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #d4af66 0%, #c5a059 100%);
+  box-shadow: 0 6px 18px rgba(197, 160, 89, 0.5);
+}
+.promo-price-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #ffffff;
+}
+.promo-price-chip small {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.promo-price-chip strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: -0.02em;
+}
+
 /* Discover & Catalog */
-.discover { padding-top: 49px; padding-bottom: 70px; }
+.discover { padding-top: 24px; padding-bottom: 70px; }
 .section-head { display: flex; justify-content: space-between; align-items: flex-end; }
 h2 {
   font-size: 29px;
@@ -404,14 +565,30 @@ h2 {
   position: relative;
   min-width: 0;
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
+  isolation: isolate;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
   transition: transform 0.25s, box-shadow 0.25s;
+}
+/* 카드 및 썸네일 외곽 테두리를 사진 위에 오버레이로 감싸 서브픽셀 삐져나옴 완벽 방지 */
+.product::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 5;
+  transition: border-color 0.25s;
 }
 .product:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
+}
+.product:hover::after {
+  border-color: #cbd5e1;
 }
 
 /* Product Card Carousel (3장 좌우 슬라이드) */
@@ -420,6 +597,11 @@ h2 {
   overflow: hidden;
   position: relative;
   background: #e8edf3;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+  border-bottom: 1px solid var(--line);
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
 }
 .carousel-track {
   display: flex;
@@ -433,11 +615,15 @@ h2 {
   flex-shrink: 0;
   position: relative;
   cursor: pointer;
+  overflow: hidden;
 }
 .carousel-slide img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
 }
 .carousel-btn {
   position: absolute;
@@ -1252,6 +1438,23 @@ dialog h2 { font-size: 24px; margin: 10px 0 16px; }
     gap: 18px;
   }
   .product .picture { height: 210px; }
+  
+  .promo-banner { margin-top: 18px; margin-bottom: 12px; }
+  .promo-banner-inner { min-height: 250px; border-radius: 14px; }
+  .promo-banner-content { padding: 24px 20px; max-width: 100%; }
+  .promo-banner-title { font-size: 22px; }
+  .promo-banner-desc { font-size: 12px; line-height: 1.55; margin-bottom: 14px; }
+  .promo-banner-tags span { font-size: 11px; padding: 3px 8px; }
+  .promo-btn-primary { font-size: 13px; padding: 9px 18px; }
+  .promo-price-chip strong { font-size: 17px; }
+  .promo-banner-overlay {
+    background: linear-gradient(
+      180deg,
+      rgba(15, 26, 40, 0.9) 0%,
+      rgba(15, 26, 40, 0.72) 65%,
+      rgba(15, 26, 40, 0.45) 100%
+    );
+  }
   
   .experience { grid-template-columns: 1fr; }
   .experience-photo { min-height: 240px; }
