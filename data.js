@@ -1486,7 +1486,13 @@ const Storage = {
 
   getHotels() {
     try {
-      return JSON.parse(localStorage.getItem(this.KEYS.HOTELS)) || DEFAULT_HOTELS;
+      const raw = localStorage.getItem(this.KEYS.HOTELS);
+      if (!raw) return DEFAULT_HOTELS;
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+      return DEFAULT_HOTELS;
     } catch {
       return DEFAULT_HOTELS;
     }
@@ -1768,12 +1774,18 @@ Storage.init();
 
 // Convex 자동 동기화 시도 (페이지 로딩 완료 후 지연 실행)
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
+  function startConvexSync() {
     setTimeout(() => {
       if (typeof Storage !== 'undefined' && Storage.syncFromConvex) {
         Storage.syncFromConvex();
       }
-    }, 150);
-  });
+    }, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startConvexSync);
+  } else {
+    startConvexSync();
+  }
 }
 

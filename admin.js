@@ -256,83 +256,98 @@ window.applyBatchPrice = function() {
 
 // Render Hotels Table
 function renderHotelsTable() {
-  const hotels = Storage.getHotels();
-  const search = ($('#hotel-search')?.value || '').trim().toLowerCase();
-  const regionFilter = $('#hotel-region-filter')?.value || 'all';
-  const mainFilter = $('#hotel-main-filter')?.value || 'all';
+  try {
+    const hotels = Storage.getHotels() || [];
+    const search = ($('#hotel-search')?.value || '').trim().toLowerCase();
+    const regionFilter = $('#hotel-region-filter')?.value || 'all';
+    const mainFilter = $('#hotel-main-filter')?.value || 'all';
 
-  let list = hotels.filter(h => {
-    if (search && !h.name.toLowerCase().includes(search) && !h.location.toLowerCase().includes(search)) return false;
-    if (regionFilter !== 'all' && h.region !== regionFilter) return false;
-    if (mainFilter === 'main' && !h.isMain) return false;
-    if (mainFilter === 'not_main' && h.isMain) return false;
-    return true;
-  });
+    let list = hotels.filter(h => {
+      if (!h) return false;
+      const name = String(h.name || '').toLowerCase();
+      const loc = String(h.location || '').toLowerCase();
+      if (search && !name.includes(search) && !loc.includes(search)) return false;
+      if (regionFilter !== 'all' && h.region !== regionFilter) return false;
+      if (mainFilter === 'main' && !h.isMain) return false;
+      if (mainFilter === 'not_main' && h.isMain) return false;
+      return true;
+    });
 
-  const tbody = $('#hotels-tbody');
-  const countEl = $('#hotel-table-count');
-  if (countEl) countEl.textContent = list.length;
-  if (!tbody) return;
+    const tbody = $('#hotels-tbody');
+    const countEl = $('#hotel-table-count');
+    if (countEl) countEl.textContent = list.length;
+    if (!tbody) return;
 
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">조건에 맞는 숙박시설이 없습니다.</td></tr>`;
-    return;
+    if (list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">조건에 맞는 숙박시설이 없습니다.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map((h, idx) => {
+      const id = String(h.id || h.customId || h._id || ('hotel_' + idx));
+      const thumb = (Array.isArray(h.images) && h.images[0]) || (typeof h.images === 'string' ? h.images : 'assets/resort.jpg');
+      const imgCount = Array.isArray(h.images) ? h.images.length : 1;
+      const originalPrice = Number(h.originalPrice) || 200000;
+      const price = Number(h.price) || 19000;
+      const isMain = Boolean(h.isMain);
+
+      return `
+        <tr>
+          <td style="color:#94a3b8;font-weight:600;">${idx + 1}</td>
+          <td>
+            <div style="position:relative;display:inline-block;">
+              <img src="${thumb}" class="tbl-thumb" alt="${h.name || ''}" onerror="this.src='assets/resort.jpg'">
+              <span style="position:absolute;bottom:2px;right:10px;background:#000a;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;">
+                ${imgCount}장
+              </span>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:700;color:#0f172a;margin-bottom:3px;">${h.name || '미지정 시설'}</div>
+            <small style="color:#64748b;">${h.desc || ''}</small>
+          </td>
+          <td>
+            <span class="status-badge" style="background:#f1f5f9;color:#334155;margin-right:4px;">${h.region || '기타'}</span>
+            <span style="font-size:12px;color:#64748b;">${h.location || ''}</span>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">
+              <input type="text" inputmode="numeric" value="${Money(originalPrice)}" style="width:90px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-weight:700;text-align:right;color:#475569;"
+                oninput="this.value = formatInputWithCommas(this.value)"
+                onchange="updateHotelOriginalPriceInline('${id}', this.value)">
+              <span style="font-size:11px;color:#64748b;">원</span>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">
+              <input type="text" inputmode="numeric" value="${Money(price)}" style="width:90px;padding:4px 6px;border:1px solid #93c5fd;border-radius:4px;font-weight:700;text-align:right;color:#1d4ed8;background:#eff6ff;"
+                oninput="this.value = formatInputWithCommas(this.value)"
+                onchange="updateHotelCouponPriceInline('${id}', this.value)">
+              <span style="font-size:11px;color:#64748b;">원</span>
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <label class="switch">
+              <input type="checkbox" ${isMain ? 'checked' : ''} onchange="toggleHotelMain('${id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </td>
+          <td style="text-align:center;">
+            <div style="display:flex;gap:4px;justify-content:center;">
+              <button class="btn-tbl-sm" onclick="openEditHotelModal('${id}')">수정</button>
+              <button class="btn-tbl-sm btn-tbl-danger" onclick="deleteHotel('${id}')">삭제</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('renderHotelsTable error:', err);
+    const tbody = $('#hotels-tbody');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#ef4444;">목록 렌더링 중 오류가 발생했습니다. (새로고침 해주세요)</td></tr>`;
+    }
   }
-
-  tbody.innerHTML = list.map((h, idx) => {
-    const thumb = (h.images && h.images[0]) || 'assets/resort.jpg';
-    const imgCount = (h.images && h.images.length) || 1;
-
-    return `
-      <tr>
-        <td style="color:#94a3b8;font-weight:600;">${idx + 1}</td>
-        <td>
-          <div style="position:relative;display:inline-block;">
-            <img src="${thumb}" class="tbl-thumb" alt="${h.name}">
-            <span style="position:absolute;bottom:2px;right:10px;background:#000a;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;">
-              ${imgCount}장
-            </span>
-          </div>
-        </td>
-        <td>
-          <div style="font-weight:700;color:#0f172a;margin-bottom:3px;">${h.name}</div>
-          <small style="color:#64748b;">${h.desc || ''}</small>
-        </td>
-        <td>
-          <span class="status-badge" style="background:#f1f5f9;color:#334155;margin-right:4px;">${h.region}</span>
-          <span style="font-size:12px;color:#64748b;">${h.location}</span>
-        </td>
-        <td>
-          <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">
-            <input type="text" inputmode="numeric" value="${Money(h.originalPrice || 200000)}" style="width:90px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-weight:700;text-align:right;color:#475569;"
-              oninput="this.value = formatInputWithCommas(this.value)"
-              onchange="updateHotelOriginalPriceInline('${h.id}', this.value)">
-            <span style="font-size:11px;color:#64748b;">원</span>
-          </div>
-        </td>
-        <td>
-          <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">
-            <input type="text" inputmode="numeric" value="${Money(h.price || 19000)}" style="width:90px;padding:4px 6px;border:1px solid #93c5fd;border-radius:4px;font-weight:700;text-align:right;color:#1d4ed8;background:#eff6ff;"
-              oninput="this.value = formatInputWithCommas(this.value)"
-              onchange="updateHotelCouponPriceInline('${h.id}', this.value)">
-            <span style="font-size:11px;color:#64748b;">원</span>
-          </div>
-        </td>
-        <td style="text-align:center;">
-          <label class="switch">
-            <input type="checkbox" ${h.isMain ? 'checked' : ''} onchange="toggleHotelMain('${h.id}', this.checked)">
-            <span class="slider"></span>
-          </label>
-        </td>
-        <td style="text-align:center;">
-          <div style="display:flex;gap:4px;justify-content:center;">
-            <button class="btn-tbl-sm" onclick="openEditHotelModal('${h.id}')">수정</button>
-            <button class="btn-tbl-sm btn-tbl-danger" onclick="deleteHotel('${h.id}')">삭제</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
 }
 
 // Inline original price update
@@ -1867,13 +1882,19 @@ window.handleAdminLogout = function() {
   checkAdminAuth();
 };
 
-// Admin Init
-window.addEventListener('DOMContentLoaded', () => {
+// Admin Init Helper
+function startAdminApp() {
   initTabs();
   updateStats();
   renderHotelsTable();
   checkAdminAuth();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startAdminApp);
+} else {
+  startAdminApp();
+}
 
 // Convex 클라우드 데이터 동기화 완료 이벤트 감지
 window.addEventListener('convex-synced', () => {

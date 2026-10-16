@@ -1813,7 +1813,11 @@ function initApp() {
   renderCatalog();
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // Convex 클라우드 데이터 동기화 완료 시 카탈로그 재렌더링
 window.addEventListener('convex-synced', () => {
