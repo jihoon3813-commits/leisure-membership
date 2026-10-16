@@ -5,6 +5,9 @@
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
+// Safe Reference to HD ONE Data Storage
+const Storage = (typeof window !== 'undefined' && window.Storage && window.Storage.getHotels) ? window.Storage : ((typeof globalThis !== 'undefined' && globalThis.Storage && globalThis.Storage.getHotels) ? globalThis.Storage : window.Storage);
+
 // Application State
 const State = {
   category: 'all',

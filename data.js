@@ -1770,6 +1770,14 @@ const Storage = {
   }
 };
 
+// Ensure Storage is accessible globally across all scripts and browsers
+if (typeof window !== 'undefined') {
+  window.Storage = Storage;
+}
+if (typeof globalThis !== 'undefined') {
+  globalThis.Storage = Storage;
+}
+
 Storage.init();
 
 // Convex 자동 동기화 시도 (페이지 로딩 완료 후 지연 실행)
