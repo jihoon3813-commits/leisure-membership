@@ -147,58 +147,75 @@ function updateCloudBadge() {
 
 // Update Overview Stats
 function updateStats() {
-  updateCloudBadge();
-  const hotels = Storage.getHotels();
-  const coupons = Storage.getCoupons();
-  const reservations = Storage.getReservations();
-  const inquiries = Storage.getInquiries();
-  const others = Storage.getOtherProducts();
-  const admins = Storage.getAdminAccounts ? Storage.getAdminAccounts() : [];
-  const adminLogs = Storage.getAdminLogs ? Storage.getAdminLogs() : [];
+  try {
+    updateCloudBadge();
+    const hotels = Storage.getHotels();
+    const coupons = Storage.getCoupons();
+    const reservations = Storage.getReservations();
+    const inquiries = Storage.getInquiries();
+    const others = Storage.getOtherProducts();
+    const admins = Storage.getAdminAccounts ? Storage.getAdminAccounts() : [];
+    const adminLogs = Storage.getAdminLogs ? Storage.getAdminLogs() : [];
 
-  const mainCount = hotels.filter(h => h.isMain).length;
-  const notIssuedCoupons = coupons.filter(c => c.status === 'NOT_ISSUED').length;
-  const issuedCoupons = coupons.filter(c => c.status === 'ISSUED').length;
-  const regCoupons = coupons.filter(c => c.status === 'REGISTERED').length;
-  const usedCoupons = coupons.filter(c => c.status === 'USED').length;
+    const mainCount = hotels.filter(h => h.isMain).length;
+    const notIssuedCoupons = coupons.filter(c => c.status === 'NOT_ISSUED').length;
+    const issuedCoupons = coupons.filter(c => c.status === 'ISSUED').length;
+    const regCoupons = coupons.filter(c => c.status === 'REGISTERED').length;
+    const usedCoupons = coupons.filter(c => c.status === 'USED').length;
 
-  const pendingRes = reservations.filter(r => r.status === '접수대기').length;
-  const pendingInq = inquiries.filter(q => q.status === '상담대기').length;
+    const pendingRes = reservations.filter(r => r.status === '접수대기').length;
+    const pendingInq = inquiries.filter(q => q.status === '상담대기').length;
 
-  $('#stat-hotels').textContent = hotels.length;
-  $('#stat-hotels-main').textContent = mainCount;
+    const elHotels = $('#stat-hotels');
+    const elHotelsMain = $('#stat-hotels-main');
+    if (elHotels) elHotels.textContent = hotels.length;
+    if (elHotelsMain) elHotelsMain.textContent = mainCount;
 
-  $('#stat-coupons').textContent = Money(coupons.length);
-  const elNotIssued = $('#stat-coupons-not-issued');
-  const elIssued = $('#stat-coupons-issued');
-  const elReg = $('#stat-coupons-reg');
-  const elUsed = $('#stat-coupons-used');
-  if (elNotIssued) elNotIssued.textContent = Money(notIssuedCoupons);
-  if (elIssued) elIssued.textContent = Money(issuedCoupons);
-  if (elReg) elReg.textContent = Money(regCoupons);
-  if (elUsed) elUsed.textContent = Money(usedCoupons);
+    const elCoupons = $('#stat-coupons');
+    if (elCoupons) elCoupons.textContent = Money(coupons.length);
+    const elNotIssued = $('#stat-coupons-not-issued');
+    const elIssued = $('#stat-coupons-issued');
+    const elReg = $('#stat-coupons-reg');
+    const elUsed = $('#stat-coupons-used');
+    if (elNotIssued) elNotIssued.textContent = Money(notIssuedCoupons);
+    if (elIssued) elIssued.textContent = Money(issuedCoupons);
+    if (elReg) elReg.textContent = Money(regCoupons);
+    if (elUsed) elUsed.textContent = Money(usedCoupons);
 
-  $('#stat-reservations').textContent = reservations.length;
-  $('#stat-res-pending').textContent = pendingRes;
-  $('#stat-inquiries').textContent = inquiries.length;
-  $('#stat-inq-pending').textContent = pendingInq;
+    const elRes = $('#stat-reservations');
+    const elResPending = $('#stat-res-pending');
+    if (elRes) elRes.textContent = reservations.length;
+    if (elResPending) elResPending.textContent = pendingRes;
 
-  $('#badge-hotel-count').textContent = hotels.length;
-  $('#badge-coupon-count').textContent = Money(coupons.length);
-  $('#badge-res-count').textContent = reservations.length;
-  $('#badge-inq-count').textContent = inquiries.length;
-  $('#badge-other-count').textContent = others.length;
-  const badgeAdmin = $('#badge-admin-count');
-  if (badgeAdmin) badgeAdmin.textContent = admins.length;
+    const elInq = $('#stat-inquiries');
+    const elInqPending = $('#stat-inq-pending');
+    if (elInq) elInq.textContent = inquiries.length;
+    if (elInqPending) elInqPending.textContent = pendingInq;
 
-  const statAdminTotal = $('#admin-stat-total');
-  const statAdminActive = $('#admin-stat-active');
-  const statAdminSuper = $('#admin-stat-super');
-  const statAdminLogs = $('#admin-stat-logs');
-  if (statAdminTotal) statAdminTotal.textContent = admins.length;
-  if (statAdminActive) statAdminActive.textContent = admins.filter(a => a.status === 'ACTIVE').length;
-  if (statAdminSuper) statAdminSuper.textContent = admins.filter(a => a.role === 'SUPER_ADMIN').length;
-  if (statAdminLogs) statAdminLogs.textContent = adminLogs.length;
+    const badgeH = $('#badge-hotel-count');
+    const badgeC = $('#badge-coupon-count');
+    const badgeR = $('#badge-res-count');
+    const badgeI = $('#badge-inq-count');
+    const badgeO = $('#badge-other-count');
+    const badgeAdmin = $('#badge-admin-count');
+    if (badgeH) badgeH.textContent = hotels.length;
+    if (badgeC) badgeC.textContent = Money(coupons.length);
+    if (badgeR) badgeR.textContent = reservations.length;
+    if (badgeI) badgeI.textContent = inquiries.length;
+    if (badgeO) badgeO.textContent = others.length;
+    if (badgeAdmin) badgeAdmin.textContent = admins.length;
+
+    const statAdminTotal = $('#admin-stat-total');
+    const statAdminActive = $('#admin-stat-active');
+    const statAdminSuper = $('#admin-stat-super');
+    const statAdminLogs = $('#admin-stat-logs');
+    if (statAdminTotal) statAdminTotal.textContent = admins.length;
+    if (statAdminActive) statAdminActive.textContent = admins.filter(a => a.status === 'ACTIVE').length;
+    if (statAdminSuper) statAdminSuper.textContent = admins.filter(a => a.role === 'SUPER_ADMIN').length;
+    if (statAdminLogs) statAdminLogs.textContent = adminLogs.length;
+  } catch (err) {
+    console.warn('updateStats non-fatal error:', err);
+  }
 }
 
 // ========================================================
@@ -682,11 +699,6 @@ window.handleSaveHotel = async function(e, id) {
       return;
     }
 
-    // Convex 클라우드 DB 동기화
-    if (savedHotel && Storage.syncHotelToConvex) {
-      await Storage.syncHotelToConvex(savedHotel);
-    }
-
     if (Storage.addAdminLog) {
       if (id) {
         Storage.addAdminLog('운영관리자', 'UPDATE', '숙박시설 정보 수정', `[${name}] 시설 정보/요금/사진 수정 완료`);
@@ -695,10 +707,22 @@ window.handleSaveHotel = async function(e, id) {
       }
     }
 
+    // 모달을 즉시 닫고 UI 즉시 반영 (블로킹 방지)
     closeAdminDialog();
     renderHotelsTable();
     updateStats();
     showAdminToast(id ? '숙박시설 정보가 수정되었습니다.' : '새로운 숙박시설이 등록되었습니다!');
+
+    // Convex 클라우드 DB 백그라운드 비동기 동기화 (UI가 절대 멈추지 않음)
+    if (savedHotel && Storage.syncHotelToConvex) {
+      Storage.syncHotelToConvex(savedHotel)
+        .then(() => {
+          console.log('✅ 클라우드 DB 동기화 완료:', savedHotel.name);
+        })
+        .catch(syncErr => {
+          console.warn('Convex background sync error:', syncErr);
+        });
+    }
   } catch (err) {
     console.error('handleSaveHotel failure:', err);
     alert('숙박시설 등록 중 오류가 발생했습니다: ' + err.message);

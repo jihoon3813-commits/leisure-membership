@@ -50,25 +50,35 @@ const ConvexService = {
     if (!url) throw new Error('Convex Deployment URL이 설정되지 않았습니다.');
 
     const endpoint = `${url}/api/query`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: functionPath,
-        args: args
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Convex Query 실패 (${res.status}): ${errText}`);
-    }
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: functionPath,
+          args: args
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    const data = await res.json();
-    if (data.status === 'error') {
-      throw new Error(data.errorMessage || 'Convex Query Error');
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Convex Query 실패 (${res.status}): ${errText}`);
+      }
+
+      const data = await res.json();
+      if (data.status === 'error') {
+        throw new Error(data.errorMessage || 'Convex Query Error');
+      }
+      return data.value;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
     }
-    return data.value;
   },
 
   /**
@@ -81,25 +91,35 @@ const ConvexService = {
     if (!url) throw new Error('Convex Deployment URL이 설정되지 않았습니다.');
 
     const endpoint = `${url}/api/mutation`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: functionPath,
-        args: args
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Convex Mutation 실패 (${res.status}): ${errText}`);
-    }
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: functionPath,
+          args: args
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    const data = await res.json();
-    if (data.status === 'error') {
-      throw new Error(data.errorMessage || 'Convex Mutation Error');
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Convex Mutation 실패 (${res.status}): ${errText}`);
+      }
+
+      const data = await res.json();
+      if (data.status === 'error') {
+        throw new Error(data.errorMessage || 'Convex Mutation Error');
+      }
+      return data.value;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
     }
-    return data.value;
   },
 
   /**

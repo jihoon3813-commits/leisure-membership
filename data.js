@@ -1668,11 +1668,11 @@ const Storage = {
         this.saveHotels(remoteHotels);
       }
       const reservations = await ConvexService.query('reservations:list', {});
-      if (reservations) {
+      if (reservations && reservations.length > 0) {
         this.saveReservations(reservations);
       }
       const inquiries = await ConvexService.query('inquiries:list', {});
-      if (inquiries) {
+      if (inquiries && inquiries.length > 0) {
         this.saveInquiries(inquiries);
       }
 
@@ -1766,12 +1766,14 @@ const Storage = {
 
 Storage.init();
 
-// Convex 자동 동기화 시도 (연결되어 있을 시)
+// Convex 자동 동기화 시도 (페이지 로딩 완료 후 지연 실행)
 if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
-    if (typeof Storage !== 'undefined' && Storage.syncFromConvex) {
-      Storage.syncFromConvex();
-    }
+    setTimeout(() => {
+      if (typeof Storage !== 'undefined' && Storage.syncFromConvex) {
+        Storage.syncFromConvex();
+      }
+    }, 150);
   });
 }
 
