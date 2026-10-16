@@ -5,23 +5,8 @@
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
-// Safe Reference to HD ONE Data Storage
-const getAppStorage = () => {
-  if (typeof window !== 'undefined' && window.HDStorage && typeof window.HDStorage.getHotels === 'function') return window.HDStorage;
-  if (typeof window !== 'undefined' && window.Storage && typeof window.Storage.getHotels === 'function') return window.Storage;
-  if (typeof globalThis !== 'undefined' && globalThis.HDStorage && typeof globalThis.HDStorage.getHotels === 'function') return globalThis.HDStorage;
-  return null;
-};
-const Storage = new Proxy({}, {
-  get(target, prop) {
-    const s = getAppStorage();
-    if (s && prop in s) {
-      const val = s[prop];
-      return typeof val === 'function' ? val.bind(s) : val;
-    }
-    return target[prop];
-  }
-});
+// Safe Reference: Storage is provided globally by data.js
+
 
 // Admin State
 const AdminState = {
