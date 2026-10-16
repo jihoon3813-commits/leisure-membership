@@ -6,7 +6,22 @@ const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
 // Safe Reference to HD ONE Data Storage
-const Storage = (typeof window !== 'undefined' && window.Storage && window.Storage.getHotels) ? window.Storage : ((typeof globalThis !== 'undefined' && globalThis.Storage && globalThis.Storage.getHotels) ? globalThis.Storage : window.Storage);
+const getAppStorage = () => {
+  if (typeof window !== 'undefined' && window.HDStorage && typeof window.HDStorage.getHotels === 'function') return window.HDStorage;
+  if (typeof window !== 'undefined' && window.Storage && typeof window.Storage.getHotels === 'function') return window.Storage;
+  if (typeof globalThis !== 'undefined' && globalThis.HDStorage && typeof globalThis.HDStorage.getHotels === 'function') return globalThis.HDStorage;
+  return null;
+};
+const Storage = new Proxy({}, {
+  get(target, prop) {
+    const s = getAppStorage();
+    if (s && prop in s) {
+      const val = s[prop];
+      return typeof val === 'function' ? val.bind(s) : val;
+    }
+    return target[prop];
+  }
+});
 
 // Application State
 const State = {
@@ -151,11 +166,18 @@ window.logoutUser = function() {
 
 // Catalog Rendering
 function renderCatalog() {
-  const user = Storage.getCurrentUser();
+  const curStorage = getAppStorage();
+  if (!curStorage) {
+    console.warn('Storage engine not ready yet, retrying renderCatalog in 50ms...');
+    setTimeout(renderCatalog, 50);
+    return;
+  }
+
+  const user = curStorage.getCurrentUser ? curStorage.getCurrentUser() : null;
   const isLoggedIn = Boolean(user && user.isLoggedIn);
 
-  const hotels = Storage.getHotels();
-  const others = Storage.getOtherProducts();
+  const hotels = curStorage.getHotels ? curStorage.getHotels() : [];
+  const others = curStorage.getOtherProducts ? curStorage.getOtherProducts() : [];
   let all = [...hotels, ...others];
 
   const titles = {

@@ -1850,10 +1850,12 @@ const Storage = {
 
 // Ensure Storage is accessible globally across all scripts and browsers
 if (typeof window !== 'undefined') {
-  window.Storage = Storage;
+  window.HDStorage = Storage;
+  try { window.Storage = Storage; } catch (_) {}
 }
 if (typeof globalThis !== 'undefined') {
-  globalThis.Storage = Storage;
+  globalThis.HDStorage = Storage;
+  try { globalThis.Storage = Storage; } catch (_) {}
 }
 
 Storage.init();
