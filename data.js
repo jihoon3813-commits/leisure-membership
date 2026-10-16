@@ -1650,9 +1650,22 @@ const Storage = {
   async syncFromConvex() {
     if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
     try {
-      const hotels = await ConvexService.query('hotels:list', {});
-      if (hotels && hotels.length > 0) {
-        this.saveHotels(hotels);
+      const remoteHotels = await ConvexService.query('hotels:list', {});
+      if (remoteHotels && remoteHotels.length > 0) {
+        // 로컬에만 있고 Convex에는 없는 custom 호텔이 있다면 Convex 클라우드로 자동 백업 및 병합
+        const localHotels = this.getHotels();
+        const remoteIds = new Set(remoteHotels.map(h => h.id || h.customId));
+        const unsyncedLocals = localHotels.filter(h => h && h.id && !remoteIds.has(h.id) && h.source === 'custom');
+
+        if (unsyncedLocals.length > 0) {
+          console.log(`[Convex Sync] 로컬 전용 커스텀 호텔 ${unsyncedLocals.length}개를 클라우드 DB로 자동 백업합니다.`);
+          for (const unsynced of unsyncedLocals) {
+            await this.syncHotelToConvex(unsynced);
+            remoteHotels.unshift(unsynced);
+          }
+        }
+
+        this.saveHotels(remoteHotels);
       }
       const reservations = await ConvexService.query('reservations:list', {});
       if (reservations) {
@@ -1661,6 +1674,10 @@ const Storage = {
       const inquiries = await ConvexService.query('inquiries:list', {});
       if (inquiries) {
         this.saveInquiries(inquiries);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('convex-synced', { detail: { timestamp: Date.now() } }));
       }
       return true;
     } catch (e) {
@@ -1705,9 +1722,9 @@ const Storage = {
   },
 
   async syncHotelToConvex(hotel) {
-    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
     try {
-      await ConvexService.mutation('hotels:create', {
+      await ConvexService.mutation('hotels:upsert', {
         customId: String(hotel.id || ''),
         name: String(hotel.name || ''),
         location: String(hotel.location || ''),
@@ -1716,17 +1733,33 @@ const Storage = {
         price: Number(hotel.price) || 19000,
         originalPrice: Number(hotel.originalPrice) || 200000,
         discount: Number(hotel.discount) || 0,
-        images: Array.isArray(hotel.images) ? hotel.images : ['assets/resort.jpg'],
+        images: Array.isArray(hotel.images) && hotel.images.length > 0 ? hotel.images : ['assets/resort.jpg'],
         tag: hotel.tag || 'LOUNGE PICK',
         isMain: Boolean(hotel.isMain),
         desc: hotel.desc || '',
         benefit: hotel.benefit || '회원 전용 우대 혜택 적용',
-        source: 'custom',
-        rating: 4.9
+        source: hotel.source || 'custom',
+        rating: Number(hotel.rating) || 4.9
       });
-      console.log('✅ Convex hotel synced:', hotel.name);
+      console.log('✅ Convex hotel synced (upsert):', hotel.name);
+      return true;
     } catch (e) {
       console.warn('Convex hotel sync warning:', e);
+      return false;
+    }
+  },
+
+  async deleteHotelFromConvex(id) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
+    try {
+      await ConvexService.mutation('hotels:removeByCustomId', {
+        customId: String(id)
+      });
+      console.log('✅ Convex hotel deleted:', id);
+      return true;
+    } catch (e) {
+      console.warn('Convex hotel deletion warning:', e);
+      return false;
     }
   }
 };

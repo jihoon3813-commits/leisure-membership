@@ -1739,6 +1739,13 @@ const Views = {
       <button data-cat="travel">국내·해외여행<small>여행 패키지 · 테마 여행</small></button>
       <button data-action="inquiry">1:1 상담신청<small>전담 컨시어지 맞춤 예약</small></button>
       <button data-action="benefits">멤버십 혜택<small>회원 전용 우대 혜택 안내</small></button>
+      <a href="https://hdone.net/" target="_blank" rel="noopener noreferrer" class="menu-external-link" style="display:flex;flex-direction:column;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:8px;text-align:left;font-weight:700;font-size:14px;color:var(--navy);text-decoration:none;background:#ffffff;margin-top:2px;">
+        <span style="display:flex;align-items:center;gap:6px;color:var(--blue);">
+          에이치디원 멤버십
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </span>
+        <small style="font-size:12px;font-weight:400;color:var(--muted);margin-top:4px;">HDONE 공식 라이프 케어 멤버십 사이트 바로가기</small>
+      </a>
     </div>
   `,
   faq: () => `
@@ -1807,3 +1814,9 @@ function initApp() {
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
+
+// Convex 클라우드 데이터 동기화 완료 시 카탈로그 재렌더링
+window.addEventListener('convex-synced', () => {
+  renderCatalog();
+  console.log('🔄 [App] 클라우드 DB 동기화 반영 완료');
+});

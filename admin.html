@@ -442,6 +442,11 @@
           <p id="tab-subtitle">전국 48개 숙박시설 일괄 요금 설정, 메인 노출 관리 및 신규 등록</p>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
+          <!-- 클라우드 DB 연결 상태 뱃지 -->
+          <div id="cloud-sync-badge" style="display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;border:1px solid #a7f3d0;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#047857;" title="Convex 중앙 클라우드 데이터베이스와 실시간 양방향 연동 중입니다.">
+            <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;"></span>
+            <span>클라우드 DB 실시간 연동</span>
+          </div>
           <div id="tab-header-actions">
             <button class="btn-admin-primary" onclick="openAddHotelModal()">
               + 신규 숙박시설 등록
@@ -937,9 +942,9 @@
       <symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9c0-4 7-4 6 0-.5 2-3 2-3 5M12 17h.01"/></symbol>
       <symbol id="shield-lock" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9a2 2 0 1 1 4 0v2"/></symbol>
     </defs>
-  </svg>
-
-  <script src="data.js?v=20261015_02"></script>
-  <script src="admin.js?v=20261015_02"></script>
+  <!-- Core App Scripts -->
+  <script src="convex-client.js?v=20261016_01"></script>
+  <script src="data.js?v=20261016_01"></script>
+  <script src="admin.js?v=20261016_01"></script>
 </body>
 </html>

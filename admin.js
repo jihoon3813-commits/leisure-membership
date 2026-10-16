@@ -118,8 +118,36 @@ function refreshCurrentTab() {
   }
 }
 
+// Cloud Sync Badge Status Helper
+function updateCloudBadge() {
+  const badge = $('#cloud-sync-badge');
+  if (!badge) return;
+  if (typeof ConvexService !== 'undefined' && ConvexService.isConnected()) {
+    const url = ConvexService.getUrl();
+    const isProd = url.includes('enchanted-okapi');
+    badge.style.background = '#ecfdf5';
+    badge.style.borderColor = '#a7f3d0';
+    badge.style.color = '#047857';
+    badge.innerHTML = `
+      <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;"></span>
+      <span>${isProd ? '운영 클라우드 DB 연동' : '개발 클라우드 DB 연동'}</span>
+    `;
+    badge.title = `Convex 클라우드 DB 연결됨 (${url})`;
+  } else {
+    badge.style.background = '#fef2f2';
+    badge.style.borderColor = '#fecaca';
+    badge.style.color = '#b91c1c';
+    badge.innerHTML = `
+      <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
+      <span>로컬 스토리지 모드</span>
+    `;
+    badge.title = 'Convex 연결되지 않음 (로컬 브라우저 저장소만 사용)';
+  }
+}
+
 // Update Overview Stats
 function updateStats() {
+  updateCloudBadge();
   const hotels = Storage.getHotels();
   const coupons = Storage.getCoupons();
   const reservations = Storage.getReservations();
@@ -323,23 +351,37 @@ window.updateHotelPriceInline = function(id, val) {
 };
 
 // Toggle Main Exposure
-window.toggleHotelMain = function(id, isChecked) {
+window.toggleHotelMain = async function(id, isChecked) {
   const list = Storage.getHotels();
   const item = list.find(h => h.id === id);
   if (item) {
     item.isMain = isChecked;
     Storage.saveHotels(list);
+    if (Storage.syncHotelToConvex) {
+      await Storage.syncHotelToConvex(item);
+    }
     updateStats();
     showAdminToast(`[${item.name}] 메인 노출: ${isChecked ? 'ON' : 'OFF'}`);
   }
 };
 
 // Delete Hotel
-window.deleteHotel = function(id) {
-  if (!confirm('정말 이 숙박시설을 삭제하시겠습니까?')) return;
+window.deleteHotel = async function(id) {
+  if (!confirm('정말 이 숙박시설을 삭제하시겠습니까? (클라우드 DB에서도 함께 삭제됩니다)')) return;
   let list = Storage.getHotels();
+  const target = list.find(h => h.id === id);
+  const targetName = target ? target.name : id;
   list = list.filter(h => h.id !== id);
   Storage.saveHotels(list);
+
+  if (Storage.deleteHotelFromConvex) {
+    await Storage.deleteHotelFromConvex(id);
+  }
+
+  if (Storage.addAdminLog) {
+    Storage.addAdminLog('운영관리자', 'DELETE', '숙박시설 삭제', `[${targetName}] 시설 삭제 완료`);
+  }
+
   renderHotelsTable();
   updateStats();
   showAdminToast('숙박시설이 삭제되었습니다.');
@@ -642,7 +684,7 @@ window.handleSaveHotel = async function(e, id) {
 
     // Convex 클라우드 DB 동기화
     if (savedHotel && Storage.syncHotelToConvex) {
-      Storage.syncHotelToConvex(savedHotel);
+      await Storage.syncHotelToConvex(savedHotel);
     }
 
     if (Storage.addAdminLog) {
@@ -1807,4 +1849,11 @@ window.addEventListener('DOMContentLoaded', () => {
   updateStats();
   renderHotelsTable();
   checkAdminAuth();
+});
+
+// Convex 클라우드 데이터 동기화 완료 이벤트 감지
+window.addEventListener('convex-synced', () => {
+  renderHotelsTable();
+  updateStats();
+  console.log('🔄 [Admin] 클라우드 DB 동기화 반영 완료');
 });

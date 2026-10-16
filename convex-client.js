@@ -6,9 +6,24 @@
 const ConvexService = {
   // 기본 설정된 배포 URL (또는 로컬스토리지 저장값)
   STORAGE_KEY_URL: 'HD_CONVEX_DEPLOYMENT_URL',
+  DEFAULT_PROD_URL: 'https://enchanted-okapi-410.convex.cloud',
+  DEFAULT_DEV_URL: 'https://rare-fish-631.convex.cloud',
 
   getUrl() {
-    return localStorage.getItem(this.STORAGE_KEY_URL) || window.CONVEX_DEPLOYMENT_URL || '';
+    const custom = localStorage.getItem(this.STORAGE_KEY_URL);
+    if (custom) return custom;
+    if (typeof window !== 'undefined' && window.CONVEX_DEPLOYMENT_URL) {
+      return window.CONVEX_DEPLOYMENT_URL;
+    }
+    // 로컬 개발 환경 판별
+    if (typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return this.DEFAULT_DEV_URL;
+      }
+    }
+    // 운영(Production) 사이트 기본값
+    return this.DEFAULT_PROD_URL;
   },
 
   setUrl(url) {

@@ -18,7 +18,7 @@ export default defineSchema({
     benefit: v.optional(v.string()),
     source: v.optional(v.string()),
     rating: v.optional(v.number()),
-  }).index("by_category", ["category"]).index("by_region", ["region"]),
+  }).index("by_category", ["category"]).index("by_region", ["region"]).index("by_customId", ["customId"]),
 
   coupons: defineTable({
     code: v.string(),

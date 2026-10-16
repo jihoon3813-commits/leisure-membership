@@ -21,7 +21,10 @@ export const list = query({
     if (args.region && args.region !== "전체") {
       items = items.filter((h) => h.region === args.region);
     }
-    return items;
+    return items.map((h) => ({
+      ...h,
+      id: h.customId || h._id,
+    }));
   },
 });
 
@@ -29,7 +32,9 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("hotels") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const doc = await ctx.db.get(args.id);
+    if (!doc) return null;
+    return { ...doc, id: doc.customId || doc._id };
   },
 });
 
@@ -57,7 +62,43 @@ export const create = mutation({
   },
 });
 
-// 상품 수정
+// 상품 등록 및 수정 (Upsert by customId)
+export const upsert = mutation({
+  args: {
+    customId: v.string(),
+    name: v.string(),
+    location: v.string(),
+    region: v.string(),
+    category: v.string(),
+    price: v.number(),
+    originalPrice: v.number(),
+    discount: v.number(),
+    images: v.array(v.string()),
+    tag: v.optional(v.string()),
+    isMain: v.optional(v.boolean()),
+    desc: v.optional(v.string()),
+    benefit: v.optional(v.string()),
+    source: v.optional(v.string()),
+    rating: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("hotels")
+      .withIndex("by_customId", (q) => q.eq("customId", args.customId))
+      .first();
+
+    if (existing) {
+      const { customId, ...fields } = args;
+      await ctx.db.patch(existing._id, fields);
+      return { id: existing._id, action: "updated" };
+    } else {
+      const id = await ctx.db.insert("hotels", args);
+      return { id, action: "created" };
+    }
+  },
+});
+
+// 상품 수정 (ID 기준)
 export const update = mutation({
   args: {
     id: v.id("hotels"),
@@ -82,7 +123,7 @@ export const update = mutation({
   },
 });
 
-// 상품 삭제
+// 상품 삭제 (ID 기준)
 export const remove = mutation({
   args: { id: v.id("hotels") },
   handler: async (ctx, args) => {
@@ -90,7 +131,23 @@ export const remove = mutation({
   },
 });
 
-// 대량 데이터 초기화 (Seed)
+// 상품 삭제 (customId 기준)
+export const removeByCustomId = mutation({
+  args: { customId: v.string() },
+  handler: async (ctx, args) => {
+    const item = await ctx.db
+      .query("hotels")
+      .withIndex("by_customId", (q) => q.eq("customId", args.customId))
+      .first();
+    if (item) {
+      await ctx.db.delete(item._id);
+      return { success: true };
+    }
+    return { success: false, notFound: true };
+  },
+});
+
+// 대량 데이터 초기화 (Seed, 중복 방지)
 export const bulkSeed = mutation({
   args: {
     hotels: v.array(
@@ -114,9 +171,20 @@ export const bulkSeed = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    let seeded = 0;
     for (const hotel of args.hotels) {
+      if (hotel.customId) {
+        const exists = await ctx.db
+          .query("hotels")
+          .withIndex("by_customId", (q) => q.eq("customId", hotel.customId))
+          .first();
+        if (exists) {
+          continue; // 이미 존재하면 건너뜀
+        }
+      }
       await ctx.db.insert("hotels", hotel);
+      seeded++;
     }
-    return { count: args.hotels.length };
+    return { count: seeded };
   },
 });
