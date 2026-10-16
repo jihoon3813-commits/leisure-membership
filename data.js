@@ -1434,13 +1434,45 @@ const Storage = {
       if (fromIndex < 0 || fromIndex >= hotels.length || toIndex < 0 || toIndex >= hotels.length) return false;
       const [moved] = hotels.splice(fromIndex, 1);
       hotels.splice(toIndex, 0, moved);
+      // 순서 번호 displayOrder 재할당 (0부터 순차 부여)
+      hotels.forEach((h, idx) => {
+        h.displayOrder = idx;
+      });
       this.saveHotels(hotels);
+      localStorage.setItem('hd_one_hotels_reordered_at', String(Date.now()));
+
+      // 다른 탭/창에 실시간 동기화 브로드캐스트
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('hotels-reordered', { detail: { fromIndex, toIndex } }));
+        try {
+          // Cross-tab notification
+          localStorage.setItem('hd_one_tab_sync', String(Date.now()));
+        } catch (_) {}
       }
+
+      // Convex 클라우드 DB로 순서 비동기 일괄 동기화
+      this.syncOrdersToConvex(hotels).catch(e => console.warn('syncOrdersToConvex error:', e));
+
       return true;
     } catch (e) {
       console.error('reorderHotels error:', e);
+      return false;
+    }
+  },
+
+  async syncOrdersToConvex(hotels) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
+    try {
+      const list = hotels || this.getHotels();
+      const orders = list.map((h, idx) => ({
+        id: String(h.customId || h.id || h._id),
+        displayOrder: h.displayOrder !== undefined ? h.displayOrder : idx
+      }));
+      await ConvexService.mutation('hotels:updateOrders', { orders });
+      console.log('✅ Convex hotels order synced:', orders.length);
+      return true;
+    } catch (e) {
+      console.warn('Convex syncOrders warning:', e);
       return false;
     }
   },
@@ -2000,7 +2032,8 @@ const Storage = {
         desc: hotel.desc || '',
         benefit: hotel.benefit || '회원 전용 우대 혜택 적용',
         source: hotel.source || 'custom',
-        rating: Number(hotel.rating) || 4.9
+        rating: Number(hotel.rating) || 4.9,
+        displayOrder: hotel.displayOrder !== undefined ? Number(hotel.displayOrder) : undefined
       });
       console.log('✅ Convex hotel synced (upsert):', hotel.name);
       return true;

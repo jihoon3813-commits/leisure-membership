@@ -271,6 +271,10 @@ window.handleMainDisplayCountChange = function(val) {
 let draggedHotelIndex = null;
 
 window.handleRowDragStart = function(e, idx) {
+  if (e.target && e.target.closest('input, button, select, .switch, a')) {
+    e.preventDefault();
+    return;
+  }
   draggedHotelIndex = idx;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(idx));

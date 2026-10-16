@@ -21,6 +21,13 @@ export const list = query({
     if (args.region && args.region !== "전체") {
       items = items.filter((h) => h.region === args.region);
     }
+
+    items.sort((a, b) => {
+      const orderA = a.displayOrder !== undefined ? a.displayOrder : 999999;
+      const orderB = b.displayOrder !== undefined ? b.displayOrder : 999999;
+      return orderA - orderB;
+    });
+
     return items.map((h) => ({
       ...h,
       id: h.customId || h._id,
@@ -80,6 +87,7 @@ export const upsert = mutation({
     benefit: v.optional(v.string()),
     source: v.optional(v.string()),
     rating: v.optional(v.number()),
+    displayOrder: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -95,6 +103,30 @@ export const upsert = mutation({
       const id = await ctx.db.insert("hotels", args);
       return { id, action: "created" };
     }
+  },
+});
+
+// 숙박시설 순서 일괄 업데이트
+export const updateOrders = mutation({
+  args: {
+    orders: v.array(
+      v.object({
+        id: v.string(),
+        displayOrder: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    for (const item of args.orders) {
+      const doc = await ctx.db
+        .query("hotels")
+        .withIndex("by_customId", (q) => q.eq("customId", item.id))
+        .first();
+      if (doc) {
+        await ctx.db.patch(doc._id, { displayOrder: item.displayOrder });
+      }
+    }
+    return { success: true };
   },
 });
 

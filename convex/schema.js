@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   hotels: defineTable({
     customId: v.optional(v.string()),
+    displayOrder: v.optional(v.number()),
     name: v.string(),
     location: v.string(),
     region: v.string(),

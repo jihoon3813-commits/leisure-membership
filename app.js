@@ -66,6 +66,15 @@ if (typeof window !== 'undefined') {
   window.addEventListener('hotels-reordered', () => {
     renderCatalog();
   });
+  // 다른 탭/창(예: 관리자 페이지)에서 순서나 데이터 변경 시 메인 화면 실시간 자동 갱신
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'hd_one_hotels_v3' || e.key === 'hd_one_tab_sync' || e.key === 'hd_one_hotels_reordered_at' || e.key === 'hd_one_main_display_count_v3') {
+      if (Storage.getMainDisplayCount) {
+        State.visibleLimit = Storage.getMainDisplayCount();
+      }
+      renderCatalog();
+    }
+  });
 }
 
 // Utilities
@@ -265,12 +274,15 @@ function renderCatalog() {
     return true;
   });
 
-  // Sort: isMain items come first, preserving original order within each group
+  // Sort: isMain items come first, then sorted by displayOrder (어드민 드래그앤드롭 순서 반영)
   items = items.sort((a, b) => {
     const aMain = Boolean(a.isMain);
     const bMain = Boolean(b.isMain);
     if (aMain !== bMain) return bMain ? 1 : -1;
-    return 0; // 원래 순서 그대로 보존
+
+    const orderA = a.displayOrder !== undefined ? Number(a.displayOrder) : 999999;
+    const orderB = b.displayOrder !== undefined ? Number(b.displayOrder) : 999999;
+    return orderA - orderB;
   });
 
   const totalCount = items.length;
