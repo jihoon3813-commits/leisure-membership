@@ -35,6 +35,69 @@ function autoHyphenCoupon(str) {
 
 const DEFAULT_HOTELS = [
     {
+    "benefit": "회원 전용 우대 혜택 적용",
+    "category": "hotel",
+    "customId": "custom_hotel_mv9jxf8k",
+    "desc": "넓은 수영장에서 쾌적한 환경 속 즐거움",
+    "discount": 91,
+    "id": "custom_hotel_mv9jxf8k",
+    "images": [
+        "assets/custom_hotel_mv9jxf8k_0.jpg",
+        "assets/custom_hotel_mv9jxf8k_1.jpg",
+        "assets/custom_hotel_mv9jxf8k_2.jpg"
+    ],
+    "isMain": true,
+    "location": "경기도 파주시 문산읍 문현말길 113-2",
+    "name": "[경기/파주] 오블라디 풀빌라",
+    "originalPrice": 200000,
+    "price": 19000,
+    "rating": 4.9,
+    "region": "서울·경기",
+    "source": "custom",
+    "tag": "LOUNGE PICK"
+},
+    {
+    "benefit": "회원 전용 우대 혜택 적용",
+    "category": "hotel",
+    "customId": "custom_hotel_mv9jvsn7",
+    "desc": "천혜의 자연속에서 낭만을 즐기는 팜파스 호텔 제주",
+    "discount": 91,
+    "id": "custom_hotel_mv9jvsn7",
+    "images": [
+        "assets/custom_hotel_mv9jvsn7_0.jpg"
+    ],
+    "isMain": true,
+    "location": "제주특별자치도 제주시 서해안로 368-3",
+    "name": "[제주/제주시] 팜파스 호텔 제주",
+    "originalPrice": 200000,
+    "price": 19000,
+    "rating": 4.9,
+    "region": "제주",
+    "source": "custom",
+    "tag": "LOUNGE PICK"
+},
+    {
+    "benefit": "회원 전용 우대 혜택 적용",
+    "category": "hotel",
+    "customId": "custom_hotel_mv9jswhf",
+    "desc": "아름다운 속초 해변을 바라보는 최고의 위치에 자리 잡은 팜파스 호텔&리조트 속초",
+    "discount": 91,
+    "id": "custom_hotel_mv9jswhf",
+    "images": [
+        "assets/custom_hotel_mv9jswhf_0.jpg"
+    ],
+    "isMain": true,
+    "location": "강원도 속초시 동해대로 3964",
+    "name": "[강원/속초] 팜파스 호텔&리조트 속초",
+    "originalPrice": 200000,
+    "price": 19000,
+    "rating": 4.9,
+    "region": "강원",
+    "source": "custom",
+    "tag": "LOUNGE PICK"
+},
+    
+    {
         "id": "gentrify_sl_boutique",
         "name": "[경기/안산] SL 부띠끄 호텔",
         "location": "경기도 안산시 단원구",
@@ -1472,15 +1535,30 @@ const Storage = {
       localStorage.setItem('hdone_default_logout_v1', 'true');
     }
 
-    // [경기/안산] SL 부띠끄 호텔 등록 보장
+    // 주요 호텔 및 신규 등록 커스텀 호텔 등록 보장
     try {
       const curHotels = this.getHotels();
-      if (!curHotels.some(h => h.id === 'gentrify_sl_boutique')) {
-        curHotels.unshift(DEFAULT_HOTELS[0]);
+      let changed = false;
+      const requiredHotels = [
+        'gentrify_sl_boutique',
+        'custom_hotel_mv9jxf8k',
+        'custom_hotel_mv9jvsn7',
+        'custom_hotel_mv9jswhf'
+      ];
+      for (const reqId of requiredHotels) {
+        if (!curHotels.some(h => (h.id === reqId || h.customId === reqId))) {
+          const found = DEFAULT_HOTELS.find(h => (h.id === reqId || h.customId === reqId));
+          if (found) {
+            curHotels.unshift(found);
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
         this.saveHotels(curHotels);
       }
     } catch (e) {
-      console.warn('SL Boutique hotel init check error:', e);
+      console.warn('Essential hotel init check error:', e);
     }
   },
 
