@@ -26,8 +26,47 @@ const State = {
   savedOnly: false,
   savedIds: getInitialSavedIds(),
   slideIndices: {}, // hotelId -> active slide index (0..2)
-  flatpickrInstance: null
+  flatpickrInstance: null,
+  searchQuery: '',
+  visibleLimit: (typeof Storage !== 'undefined' && Storage.getMainDisplayCount) ? Storage.getMainDisplayCount() : 16,
+  pageSize: 12
 };
+
+// Hotel Search & Load More Handlers
+window.handleHotelSearch = function(val) {
+  State.searchQuery = (val || '').trim().toLowerCase();
+  const clearBtn = $('#search-clear-btn');
+  if (clearBtn) clearBtn.hidden = !State.searchQuery;
+  const baseCount = (typeof Storage !== 'undefined' && Storage.getMainDisplayCount) ? Storage.getMainDisplayCount() : 16;
+  State.visibleLimit = baseCount;
+  renderCatalog();
+};
+
+window.clearHotelSearch = function() {
+  const input = $('#hotel-search-input');
+  if (input) input.value = '';
+  window.handleHotelSearch('');
+};
+
+window.handleLoadMore = function() {
+  const step = State.pageSize || 12;
+  if (State.visibleLimit === 'all') return;
+  State.visibleLimit = (Number(State.visibleLimit) || 16) + step;
+  renderCatalog();
+};
+
+// 메인 표시 개수 변경 및 순서 변경 이벤트 리스너
+if (typeof window !== 'undefined') {
+  window.addEventListener('main-display-count-changed', (e) => {
+    if (e.detail && e.detail.count) {
+      State.visibleLimit = e.detail.count;
+      renderCatalog();
+    }
+  });
+  window.addEventListener('hotels-reordered', () => {
+    renderCatalog();
+  });
+}
 
 // Utilities
 const Money = n => (Number(n) || 0).toLocaleString('ko-KR');
@@ -193,6 +232,20 @@ function renderCatalog() {
   };
 
   let items = all.filter(p => {
+    // Search query filter
+    if (State.searchQuery) {
+      const q = State.searchQuery;
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchLoc = (p.location || '').toLowerCase().includes(q);
+      const matchReg = (p.region || '').toLowerCase().includes(q);
+      const matchDesc = (p.desc || '').toLowerCase().includes(q);
+      const matchBen = (p.benefit || '').toLowerCase().includes(q);
+      const matchTag = (p.tag || '').toLowerCase().includes(q);
+      if (!matchName && !matchLoc && !matchReg && !matchDesc && !matchBen && !matchTag) {
+        return false;
+      }
+    }
+
     // Category filter
     if (State.category !== 'all' && p.category !== State.category) return false;
     
@@ -212,10 +265,17 @@ function renderCatalog() {
     return true;
   });
 
-  // If home page (all/all/not saved), show top items (isMain items first)
-  if (State.category === 'all' && State.region === 'all' && !State.savedOnly) {
-    items = items.sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0)).slice(0, 16);
-  }
+  // Sort: isMain items come first, preserving original order within each group
+  items = items.sort((a, b) => {
+    const aMain = Boolean(a.isMain);
+    const bMain = Boolean(b.isMain);
+    if (aMain !== bMain) return bMain ? 1 : -1;
+    return 0; // 원래 순서 그대로 보존
+  });
+
+  const totalCount = items.length;
+  const currentLimit = State.visibleLimit === 'all' ? totalCount : (Number(State.visibleLimit) || 16);
+  const displayedItems = items.slice(0, currentLimit);
 
   // Update Headings
   const titleEl = $('#section-title');
@@ -223,23 +283,43 @@ function renderCatalog() {
   const badgeEl = $('#catalog-count-badge');
   const savedCountEl = $('#saved-count');
 
-  if (titleEl) titleEl.textContent = State.savedOnly ? '내가 찜한 혜택' : (titles[State.category] || '큐레이션 컬렉션');
+  if (titleEl) {
+    if (State.searchQuery) {
+      titleEl.textContent = `'${State.searchQuery}' 검색 결과`;
+    } else {
+      titleEl.textContent = State.savedOnly ? '내가 찜한 혜택' : (titles[State.category] || '큐레이션 컬렉션');
+    }
+  }
   if (descEl) descEl.textContent = State.savedOnly ? '마음에 드는 숙박과 여행을 한곳에 모았습니다.' : (descriptions[State.category] || '');
-  if (badgeEl) badgeEl.textContent = `선택 상품 ${items.length}개`;
+  if (badgeEl) badgeEl.textContent = `선택 상품 ${totalCount}개`;
   if (savedCountEl) savedCountEl.textContent = State.savedIds.size;
 
   const grid = $('#products');
   const empty = $('#empty');
+  const loadMoreWrap = $('#load-more-wrap');
+  const loadMoreCount = $('#load-more-count');
+
   if (!grid) return;
 
-  if (items.length === 0) {
+  if (totalCount === 0) {
     grid.innerHTML = '';
     if (empty) empty.hidden = false;
+    if (loadMoreWrap) loadMoreWrap.style.display = 'none';
     return;
   }
   if (empty) empty.hidden = true;
 
-  grid.innerHTML = items.map(p => {
+  // Load More Button Visibility & Count
+  if (loadMoreWrap) {
+    if (displayedItems.length < totalCount) {
+      loadMoreWrap.style.display = 'flex';
+      if (loadMoreCount) loadMoreCount.textContent = `(${displayedItems.length} / ${totalCount})`;
+    } else {
+      loadMoreWrap.style.display = 'none';
+    }
+  }
+
+  grid.innerHTML = displayedItems.map(p => {
     const images = Array.isArray(p.images) && p.images.length > 0 ? p.images : ['assets/room.jpg'];
     const activeIdx = State.slideIndices[p.id] || 0;
     const isSaved = State.savedIds.has(p.id);
@@ -755,6 +835,9 @@ window.applyDirectReserveCoupon = function(origPrice, couponPrice) {
     target.userEmail = user.email;
     target.registeredAt = new Date().toLocaleString('ko-KR');
     Storage.saveCoupons(coupons);
+    if (Storage.registerCouponOnConvex) {
+      Storage.registerCouponOnConvex(target.code, user.name, user.phone);
+    }
   }
 
   // Append to list and check it
@@ -839,6 +922,9 @@ window.handleReserveSubmit = function(e, hotelId) {
         target.hotelName = item.name;
         target.assignedUser = name;
         target.userPhone = phone;
+      }
+      if (Storage.useCouponOnConvex) {
+        Storage.useCouponOnConvex(code, newResId);
       }
     });
     Storage.saveCoupons(coupons);

@@ -1401,7 +1401,48 @@ const Storage = {
     DEFAULT_HOTEL_PRICE: 'hd_one_default_price_v3',
     ADMIN_ACCOUNTS: 'hd_one_admins_v3',
     ADMIN_LOGS: 'hd_one_admin_logs_v3',
-    CURRENT_ADMIN: 'hd_one_current_admin_v3'
+    CURRENT_ADMIN: 'hd_one_current_admin_v3',
+    MAIN_DISPLAY_COUNT: 'hd_one_main_display_count_v3'
+  },
+
+  getMainDisplayCount() {
+    try {
+      const val = localStorage.getItem(this.KEYS.MAIN_DISPLAY_COUNT);
+      if (val === 'all') return 'all';
+      const num = parseInt(val, 10);
+      return (num && num > 0) ? num : 16;
+    } catch {
+      return 16;
+    }
+  },
+
+  setMainDisplayCount(count) {
+    try {
+      localStorage.setItem(this.KEYS.MAIN_DISPLAY_COUNT, String(count));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('main-display-count-changed', { detail: { count } }));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  reorderHotels(fromIndex, toIndex) {
+    try {
+      const hotels = this.getHotels();
+      if (fromIndex < 0 || fromIndex >= hotels.length || toIndex < 0 || toIndex >= hotels.length) return false;
+      const [moved] = hotels.splice(fromIndex, 1);
+      hotels.splice(toIndex, 0, moved);
+      this.saveHotels(hotels);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hotels-reordered', { detail: { fromIndex, toIndex } }));
+      }
+      return true;
+    } catch (e) {
+      console.error('reorderHotels error:', e);
+      return false;
+    }
   },
 
   init() {
@@ -1740,31 +1781,57 @@ const Storage = {
   async syncFromConvex() {
     if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
     try {
+      console.log(`📡 [Convex Sync] ${ConvexService.getServerInfo().label} 데이터 동기화 시작...`);
+
+      // 1. 숙박시설
       const remoteHotels = await ConvexService.query('hotels:list', {});
       if (remoteHotels && remoteHotels.length > 0) {
-        // 로컬에만 있고 Convex에는 없는 custom 호텔이 있다면 Convex 클라우드로 자동 백업 및 병합
-        const localHotels = this.getHotels();
-        const remoteIds = new Set(remoteHotels.map(h => h.id || h.customId));
-        const unsyncedLocals = localHotels.filter(h => h && h.id && !remoteIds.has(h.id) && h.source === 'custom');
-
-        if (unsyncedLocals.length > 0) {
-          console.log(`[Convex Sync] 로컬 전용 커스텀 호텔 ${unsyncedLocals.length}개를 클라우드 DB로 자동 백업합니다.`);
-          for (const unsynced of unsyncedLocals) {
-            await this.syncHotelToConvex(unsynced);
-            remoteHotels.unshift(unsynced);
-          }
-        }
-
         this.saveHotels(remoteHotels);
       }
-      const reservations = await ConvexService.query('reservations:list', {});
-      if (reservations && reservations.length > 0) {
-        this.saveReservations(reservations);
+
+      // 2. 쿠폰 4,999개 전체
+      const remoteCoupons = await ConvexService.query('coupons:list', {});
+      if (remoteCoupons && remoteCoupons.length > 0) {
+        this.saveCoupons(remoteCoupons);
       }
-      const inquiries = await ConvexService.query('inquiries:list', {});
-      if (inquiries && inquiries.length > 0) {
-        this.saveInquiries(inquiries);
+
+      // 3. 쿠폰 대역 발급 내역
+      const remoteAllocs = await ConvexService.query('coupons:listAllocations', {});
+      if (remoteAllocs && remoteAllocs.length > 0) {
+        this.saveAllocations(remoteAllocs);
       }
+
+      // 4. 예약 신청 내역
+      const remoteReservations = await ConvexService.query('reservations:list', {});
+      if (remoteReservations && remoteReservations.length > 0) {
+        this.saveReservations(remoteReservations);
+      }
+
+      // 5. 1:1 상담 내역
+      const remoteInquiries = await ConvexService.query('inquiries:list', {});
+      if (remoteInquiries && remoteInquiries.length > 0) {
+        this.saveInquiries(remoteInquiries);
+      }
+
+      // 6. 기타 카테고리 상품
+      const remoteOthers = await ConvexService.query('otherProducts:list', {});
+      if (remoteOthers && remoteOthers.length > 0) {
+        this.saveOtherProducts(remoteOthers);
+      }
+
+      // 7. 관리자 계정
+      const remoteAdmins = await ConvexService.query('admins:list', {});
+      if (remoteAdmins && remoteAdmins.length > 0) {
+        this.saveAdminAccounts(remoteAdmins);
+      }
+
+      // 8. 관리자 활동 및 보안 로그
+      const remoteLogs = await ConvexService.query('admins:listLogs', {});
+      if (remoteLogs && remoteLogs.length > 0) {
+        this.saveAdminLogs(remoteLogs);
+      }
+
+      console.log(`✅ [Convex Sync] 서버 데이터 전체 수신 완료 (호텔: ${remoteHotels?.length || 0}개, 쿠폰: ${remoteCoupons?.length || 0}장, 예약: ${remoteReservations?.length || 0}건, 상담: ${remoteInquiries?.length || 0}건)`);
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('convex-synced', { detail: { timestamp: Date.now() } }));
@@ -1780,15 +1847,28 @@ const Storage = {
     if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
     try {
       await ConvexService.mutation('reservations:create', {
+        customId: String(res.id || ''),
         hotelId: String(res.hotelId || ''),
         hotelName: String(res.hotelName || ''),
+        hotelLocation: String(res.hotelLocation || ''),
         userName: String(res.userName || ''),
+        phone: String(res.phone || res.userPhone || ''),
         userPhone: String(res.phone || res.userPhone || ''),
         couponCode: String(res.couponCode || ''),
         checkIn: String(res.checkIn || ''),
         checkOut: String(res.checkOut || ''),
+        nights: Number(res.nights || 1),
         guests: Number(res.adults || 1) + Number(res.children || 0),
-        requestMemo: res.requests || undefined,
+        adults: Number(res.adults || 1),
+        children: Number(res.children || 0),
+        address: String(res.address || ''),
+        addressDetail: String(res.addressDetail || ''),
+        postcode: String(res.postcode || ''),
+        finalPayment: Number(res.finalPayment || 0),
+        totalPrice: Number(res.totalPrice || 0),
+        requests: String(res.requests || ''),
+        requestMemo: String(res.requests || ''),
+        status: String(res.status || '접수대기'),
       });
       console.log('✅ Convex reservation synced:', res.id);
     } catch (e) {
@@ -1796,18 +1876,109 @@ const Storage = {
     }
   },
 
+  async updateReservationStatusOnConvex(id, status) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('reservations:updateStatus', {
+        id: String(id),
+        status: String(status)
+      });
+      console.log(`✅ Convex reservation status updated: [${id}] -> [${status}]`);
+    } catch (e) {
+      console.warn('Convex reservation status update error:', e);
+    }
+  },
+
   async syncInquiryToConvex(inq) {
     if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
     try {
       await ConvexService.mutation('inquiries:create', {
+        customId: String(inq.id || ''),
         name: String(inq.name || ''),
         phone: String(inq.phone || ''),
         title: String(inq.title || inq.type || '상담 문의'),
+        category: String(inq.category || '기타'),
+        preferredTime: String(inq.preferredTime || ''),
         content: String(inq.content || ''),
+        status: String(inq.status || '상담대기'),
+        memo: String(inq.memo || ''),
       });
       console.log('✅ Convex inquiry synced:', inq.id);
     } catch (e) {
       console.warn('Convex inquiry sync warning:', e);
+    }
+  },
+
+  async updateInquiryStatusOnConvex(id, status) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('inquiries:updateStatus', {
+        id: String(id),
+        status: String(status)
+      });
+      console.log(`✅ Convex inquiry status updated: [${id}] -> [${status}]`);
+    } catch (e) {
+      console.warn('Convex inquiry status update error:', e);
+    }
+  },
+
+  async updateInquiryMemoOnConvex(id, memo) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('inquiries:updateMemo', {
+        id: String(id),
+        memo: String(memo)
+      });
+      console.log(`✅ Convex inquiry memo updated: [${id}]`);
+    } catch (e) {
+      console.warn('Convex inquiry memo update error:', e);
+    }
+  },
+
+  async createAllocationOnConvex(alloc) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('coupons:createAllocation', {
+        id: String(alloc.id),
+        startNum: Number(alloc.startNum),
+        endNum: Number(alloc.endNum),
+        branch: String(alloc.branch),
+        memo: alloc.memo ? String(alloc.memo) : undefined,
+        count: Number(alloc.count),
+        createdAt: String(alloc.createdAt)
+      });
+      console.log(`✅ Convex coupon allocation created: [${alloc.branch}] ${alloc.startNum}~${alloc.endNum}`);
+    } catch (e) {
+      console.warn('Convex allocation create error:', e);
+    }
+  },
+
+  async registerCouponOnConvex(code, userName, userPhone) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('coupons:registerUser', {
+        code: String(code),
+        userName: String(userName),
+        userPhone: String(userPhone),
+        registeredAt: new Date().toISOString().substring(0, 16).replace('T', ' ')
+      });
+      console.log(`✅ Convex coupon registered: [${code}] to [${userName}]`);
+    } catch (e) {
+      console.warn('Convex coupon register error:', e);
+    }
+  },
+
+  async useCouponOnConvex(code, reservationId) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('coupons:useCoupon', {
+        code: String(code),
+        reservationId: reservationId ? String(reservationId) : undefined,
+        usedAt: new Date().toISOString().substring(0, 16).replace('T', ' ')
+      });
+      console.log(`✅ Convex coupon used: [${code}] for [${reservationId}]`);
+    } catch (e) {
+      console.warn('Convex coupon use error:', e);
     }
   },
 
@@ -1851,6 +2022,108 @@ const Storage = {
       console.warn('Convex hotel deletion warning:', e);
       return false;
     }
+  },
+
+  async syncOtherProductToConvex(item) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
+    try {
+      await ConvexService.mutation('otherProducts:upsert', {
+        customId: String(item.id || item.customId || ''),
+        category: String(item.category || 'villa'),
+        name: String(item.name || ''),
+        location: String(item.location || ''),
+        region: String(item.region || '기타'),
+        price: Number(item.price) || 0,
+        originalPrice: Number(item.originalPrice) || 0,
+        discount: Number(item.discount) || 0,
+        images: Array.isArray(item.images) ? item.images : ['assets/villa1.jpg'],
+        tag: item.tag || '',
+        desc: item.desc || '',
+        benefit: item.benefit || '',
+        isMain: Boolean(item.isMain),
+        rating: Number(item.rating) || 4.8
+      });
+      return true;
+    } catch (e) {
+      console.warn('Convex otherProduct sync warning:', e);
+      return false;
+    }
+  },
+
+  async deleteOtherProductFromConvex(customId) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return false;
+    try {
+      await ConvexService.mutation('otherProducts:remove', { customId: String(customId) });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async syncAdminToConvex(admin, isUpdate = false) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      if (isUpdate) {
+        await ConvexService.mutation('admins:update', {
+          id: String(admin.id),
+          name: admin.name,
+          department: admin.department,
+          role: admin.role,
+          roleName: admin.roleName,
+          phone: admin.phone,
+          email: admin.email,
+          status: admin.status,
+          password: admin.password,
+          memo: admin.memo
+        });
+      } else {
+        await ConvexService.mutation('admins:create', {
+          id: String(admin.id),
+          username: String(admin.username),
+          password: String(admin.password || '1234'),
+          name: String(admin.name),
+          role: String(admin.role),
+          roleName: String(admin.roleName || admin.role),
+          department: String(admin.department || ''),
+          phone: String(admin.phone || ''),
+          email: String(admin.email || ''),
+          status: String(admin.status || 'ACTIVE'),
+          createdAt: String(admin.createdAt || new Date().toISOString().substring(0, 16).replace('T', ' ')),
+          memo: admin.memo || ''
+        });
+      }
+    } catch (e) {
+      console.warn('Convex admin sync warning:', e);
+    }
+  },
+
+  async deleteAdminFromConvex(id) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('admins:remove', { id: String(id) });
+    } catch (e) {}
+  },
+
+  async addAdminLogToConvex(log) {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('admins:addLog', {
+        id: String(log.id),
+        adminId: String(log.adminId),
+        adminName: String(log.adminName),
+        action: String(log.action),
+        actionName: String(log.actionName),
+        details: String(log.details || ''),
+        createdAt: String(log.createdAt)
+      });
+    } catch (e) {}
+  },
+
+  async clearAdminLogsOnConvex() {
+    if (typeof ConvexService === 'undefined' || !ConvexService.isConnected()) return;
+    try {
+      await ConvexService.mutation('admins:clearLogs', {});
+    } catch (e) {}
   }
 };
 

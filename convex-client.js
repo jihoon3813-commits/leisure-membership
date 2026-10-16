@@ -40,6 +40,34 @@ const ConvexService = {
     return !!this.getUrl();
   },
 
+  isProd() {
+    return this.getUrl().includes('enchanted-okapi');
+  },
+
+  getServerInfo() {
+    const url = this.getUrl();
+    const isProd = url.includes('enchanted-okapi');
+    return {
+      env: isProd ? 'prod' : 'dev',
+      isProd,
+      url,
+      label: isProd ? '운영 서버 (Production)' : '개발 서버 (Development)',
+      shortName: isProd ? '운영(PROD)' : '개발(DEV)',
+      cloudId: isProd ? 'enchanted-okapi-410' : 'rare-fish-631'
+    };
+  },
+
+  switchServer(targetEnv) {
+    if (targetEnv === 'prod') {
+      this.setUrl(this.DEFAULT_PROD_URL);
+    } else if (targetEnv === 'dev') {
+      this.setUrl(this.DEFAULT_DEV_URL);
+    }
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.reload();
+    }
+  },
+
   /**
    * Convex Query 실행 (POST /api/query)
    * @param {string} functionPath - 예: 'hotels:list'

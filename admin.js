@@ -126,27 +126,29 @@ function updateCloudBadge() {
   const badge = $('#cloud-sync-badge');
   if (!badge) return;
   if (typeof ConvexService !== 'undefined' && ConvexService.isConnected()) {
-    const url = ConvexService.getUrl();
-    const isProd = url.includes('enchanted-okapi');
-    badge.style.background = '#ecfdf5';
-    badge.style.borderColor = '#a7f3d0';
-    badge.style.color = '#047857';
+    const info = ConvexService.getServerInfo ? ConvexService.getServerInfo() : { isProd: ConvexService.getUrl().includes('enchanted-okapi'), label: 'Convex 클라우드 DB', cloudId: 'cloud' };
+    const isProd = info.isProd;
+    badge.style.background = isProd ? '#ecfdf5' : '#fefce8';
+    badge.style.borderColor = isProd ? '#a7f3d0' : '#fef08a';
+    badge.style.color = isProd ? '#047857' : '#854d0e';
     badge.innerHTML = `
-      <span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;"></span>
-      <span>${isProd ? '운영 클라우드 DB 연동' : '개발 클라우드 DB 연동'}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${isProd ? '#10b981' : '#eab308'};box-shadow:0 0 8px ${isProd ? '#10b981' : '#eab308'};display:inline-block;"></span>
+      <span>${info.label} (${info.cloudId})</span>
+      <button type="button" onclick="ConvexService.switchServer('${isProd ? 'dev' : 'prod'}')" style="margin-left:6px;background:${isProd ? '#047857' : '#854d0e'};color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;" title="서버 환경을 전환합니다">${isProd ? '⚡ 개발서버로 전환' : '⚡ 운영서버로 전환'}</button>
     `;
-    badge.title = `Convex 클라우드 DB 연결됨 (${url})`;
+    badge.title = `Convex 서버 연결됨 (${ConvexService.getUrl()})`;
   } else {
     badge.style.background = '#fef2f2';
     badge.style.borderColor = '#fecaca';
     badge.style.color = '#b91c1c';
     badge.innerHTML = `
       <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
-      <span>로컬 스토리지 모드</span>
+      <span>서버 연결 대기</span>
     `;
-    badge.title = 'Convex 연결되지 않음 (로컬 브라우저 저장소만 사용)';
+    badge.title = 'Convex 연결 실패';
   }
 }
+
 
 // Update Overview Stats
 function updateStats() {
@@ -257,6 +259,78 @@ window.applyBatchPrice = function() {
   showAdminToast(`${region === 'all' ? '전체' : region} 지역 ${updatedCount}개 숙박시설: 정가 ${Money(originalPrice)}원 / 쿠폰가 ${Money(couponPrice)}원으로 일괄 변경되었습니다!`);
 };
 
+// Main Display Count & Reorder Handlers
+window.handleMainDisplayCountChange = function(val) {
+  if (Storage.setMainDisplayCount) {
+    Storage.setMainDisplayCount(val);
+    const label = val === 'all' ? '전체 모두' : val + '개';
+    showAdminToast(`메인 화면 기본 노출 개수가 [${label}]로 설정되었습니다.`);
+  }
+};
+
+let draggedHotelIndex = null;
+
+window.handleRowDragStart = function(e, idx) {
+  draggedHotelIndex = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(idx));
+  const row = e.currentTarget;
+  if (row) {
+    row.classList.add('row-dragging');
+    row.style.opacity = '0.4';
+  }
+};
+
+window.handleRowDragOver = function(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.currentTarget;
+  if (row && !row.classList.contains('row-drag-over')) {
+    row.classList.add('row-drag-over');
+    row.style.borderTop = '2.5px solid #2563eb';
+  }
+};
+
+window.handleRowDragLeave = function(e) {
+  const row = e.currentTarget;
+  if (row) {
+    row.classList.remove('row-drag-over');
+    row.style.borderTop = '';
+  }
+};
+
+window.handleRowDrop = function(e, targetIdx) {
+  e.preventDefault();
+  const row = e.currentTarget;
+  if (row) {
+    row.classList.remove('row-drag-over');
+    row.style.borderTop = '';
+  }
+
+  if (draggedHotelIndex === null || draggedHotelIndex === targetIdx) return;
+
+  const success = Storage.reorderHotels ? Storage.reorderHotels(draggedHotelIndex, targetIdx) : false;
+  if (success) {
+    renderHotelsTable();
+    showAdminToast('숙박시설 노출 순서가 변경되었습니다.');
+  }
+  draggedHotelIndex = null;
+};
+
+window.handleRowDragEnd = function(e) {
+  const row = e.currentTarget;
+  if (row) {
+    row.classList.remove('row-dragging');
+    row.style.opacity = '';
+  }
+  const rows = document.querySelectorAll('#hotels-tbody tr');
+  rows.forEach(r => {
+    r.classList.remove('row-drag-over');
+    r.style.borderTop = '';
+  });
+  draggedHotelIndex = null;
+};
+
 // Render Hotels Table
 function renderHotelsTable() {
   try {
@@ -265,7 +339,14 @@ function renderHotelsTable() {
     const regionFilter = $('#hotel-region-filter')?.value || 'all';
     const mainFilter = $('#hotel-main-filter')?.value || 'all';
 
-    let list = hotels.filter(h => {
+    // Update main display count select if needed
+    const countSelect = $('#admin-main-display-count');
+    if (countSelect && Storage.getMainDisplayCount) {
+      countSelect.value = String(Storage.getMainDisplayCount());
+    }
+
+    // Attach original index for reliable drag & drop reordering
+    let listWithIndex = hotels.map((h, originalIdx) => ({ h, originalIdx })).filter(({ h }) => {
       if (!h) return false;
       const name = String(h.name || '').toLowerCase();
       const loc = String(h.location || '').toLowerCase();
@@ -278,16 +359,16 @@ function renderHotelsTable() {
 
     const tbody = $('#hotels-tbody');
     const countEl = $('#hotel-table-count');
-    if (countEl) countEl.textContent = list.length;
+    if (countEl) countEl.textContent = listWithIndex.length;
     if (!tbody) return;
 
-    if (list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">조건에 맞는 숙박시설이 없습니다.</td></tr>`;
+    if (listWithIndex.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">조건에 맞는 숙박시설이 없습니다.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = list.map((h, idx) => {
-      const id = String(h.id || h.customId || h._id || ('hotel_' + idx));
+    tbody.innerHTML = listWithIndex.map(({ h, originalIdx }, displayIdx) => {
+      const id = String(h.id || h.customId || h._id || ('hotel_' + originalIdx));
       const thumb = (Array.isArray(h.images) && h.images[0]) || (typeof h.images === 'string' ? h.images : 'assets/resort.jpg');
       const imgCount = Array.isArray(h.images) ? h.images.length : 1;
       const originalPrice = Number(h.originalPrice) || 200000;
@@ -295,8 +376,17 @@ function renderHotelsTable() {
       const isMain = Boolean(h.isMain);
 
       return `
-        <tr>
-          <td style="color:#94a3b8;font-weight:600;">${idx + 1}</td>
+        <tr draggable="true"
+            data-id="${id}"
+            data-original-index="${originalIdx}"
+            ondragstart="handleRowDragStart(event, ${originalIdx})"
+            ondragover="handleRowDragOver(event)"
+            ondragleave="handleRowDragLeave(event)"
+            ondrop="handleRowDrop(event, ${originalIdx})"
+            ondragend="handleRowDragEnd(event)"
+            style="cursor:default;transition:background 0.15s, border-top 0.15s;">
+          <td style="text-align:center;cursor:grab;color:#94a3b8;font-size:18px;user-select:none;" title="마우스로 끌어서 순서 변경">⠿</td>
+          <td style="color:#64748b;font-weight:700;font-size:12px;">${originalIdx + 1}</td>
           <td>
             <div style="position:relative;display:inline-block;">
               <img src="${thumb}" class="tbl-thumb" alt="${h.name || ''}" onerror="this.src='assets/resort.jpg'">
@@ -306,7 +396,10 @@ function renderHotelsTable() {
             </div>
           </td>
           <td>
-            <div style="font-weight:700;color:#0f172a;margin-bottom:3px;">${h.name || '미지정 시설'}</div>
+            <div style="font-weight:700;color:#0f172a;margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+              <span>${h.name || '미지정 시설'}</span>
+              ${isMain ? '<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">메인ON</span>' : ''}
+            </div>
             <small style="color:#64748b;">${h.desc || ''}</small>
           </td>
           <td>
@@ -330,7 +423,7 @@ function renderHotelsTable() {
             </div>
           </td>
           <td style="text-align:center;">
-            <label class="switch">
+            <label class="switch" title="메인 화면 상단 우선 노출">
               <input type="checkbox" ${isMain ? 'checked' : ''} onchange="toggleHotelMain('${id}', this.checked)">
               <span class="slider"></span>
             </label>
@@ -348,7 +441,7 @@ function renderHotelsTable() {
     console.error('renderHotelsTable error:', err);
     const tbody = $('#hotels-tbody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#ef4444;">목록 렌더링 중 오류가 발생했습니다. (새로고침 해주세요)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:#ef4444;">목록 렌더링 중 오류가 발생했습니다. (새로고침 해주세요)</td></tr>`;
     }
   }
 }
@@ -388,15 +481,21 @@ window.updateHotelPriceInline = function(id, val) {
 // Toggle Main Exposure
 window.toggleHotelMain = async function(id, isChecked) {
   const list = Storage.getHotels();
-  const item = list.find(h => h.id === id);
+  const item = list.find(h => (h.id === id || h.customId === id || h._id === id));
   if (item) {
-    item.isMain = isChecked;
+    item.isMain = Boolean(isChecked);
     Storage.saveHotels(list);
-    if (Storage.syncHotelToConvex) {
-      await Storage.syncHotelToConvex(item);
-    }
+    renderHotelsTable();
     updateStats();
     showAdminToast(`[${item.name}] 메인 노출: ${isChecked ? 'ON' : 'OFF'}`);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hotels-reordered'));
+    }
+
+    if (Storage.syncHotelToConvex) {
+      Storage.syncHotelToConvex(item).catch(e => console.warn('syncHotelToConvex error:', e));
+    }
   }
 };
 
@@ -807,6 +906,9 @@ window.handleCreateAllocation = function(e) {
   };
   allocs.push(newAlloc);
   Storage.saveAllocations(allocs);
+  if (Storage.createAllocationOnConvex) {
+    Storage.createAllocationOnConvex(newAlloc);
+  }
 
   // Update existing coupons in storage (0002~5000)
   const coupons = Storage.getCoupons();
@@ -1040,6 +1142,9 @@ window.updateResStatus = function(id, newStatus) {
   if (r) {
     r.status = newStatus;
     Storage.saveReservations(list);
+    if (Storage.updateReservationStatusOnConvex) {
+      Storage.updateReservationStatusOnConvex(id, newStatus);
+    }
     if (Storage.addAdminLog) {
       Storage.addAdminLog('CS상담관리자', 'RES_CONFIRM', '예약 상태 변경', `예약 [${r.id}] (${r.userName} / ${r.hotelName}) -> [${newStatus}]`);
     }
@@ -1098,6 +1203,9 @@ window.updateInqStatus = function(id, status) {
   if (q) {
     q.status = status;
     Storage.saveInquiries(list);
+    if (Storage.updateInquiryStatusOnConvex) {
+      Storage.updateInquiryStatusOnConvex(id, status);
+    }
     updateStats();
     showAdminToast(`상담 상태가 [${status}]로 변경되었습니다.`);
   }
@@ -1109,6 +1217,9 @@ window.updateInqMemo = function(id, memo) {
   if (q) {
     q.memo = memo;
     Storage.saveInquiries(list);
+    if (Storage.updateInquiryMemoOnConvex) {
+      Storage.updateInquiryMemoOnConvex(id, memo);
+    }
     showAdminToast('상담 메모가 저장되었습니다.');
   }
 };
@@ -1221,8 +1332,7 @@ window.handleSaveOtherProduct = function(e) {
   const image = $('#o-image').value.trim() || 'assets/yacht.jpg';
   const desc = $('#o-desc').value.trim();
 
-  const others = Storage.getOtherProducts();
-  others.unshift({
+  const newProduct = {
     id: category + '_' + Date.now().toString(36),
     name: name,
     category: category,
@@ -1237,9 +1347,13 @@ window.handleSaveOtherProduct = function(e) {
     desc: desc,
     benefit: '회원 전용 우대 혜택',
     source: 'custom'
-  });
+  };
+  others.unshift(newProduct);
 
   Storage.saveOtherProducts(others);
+  if (Storage.syncOtherProductToConvex) {
+    Storage.syncOtherProductToConvex(newProduct);
+  }
   closeAdminDialog();
   renderOtherProductsTable();
   updateStats();
@@ -1251,6 +1365,9 @@ window.deleteOtherProduct = function(id) {
   let others = Storage.getOtherProducts();
   others = others.filter(x => x.id !== id);
   Storage.saveOtherProducts(others);
+  if (Storage.deleteOtherProductFromConvex) {
+    Storage.deleteOtherProductFromConvex(id);
+  }
   renderOtherProductsTable();
   updateStats();
   showAdminToast('상품이 삭제되었습니다.');
@@ -1406,6 +1523,9 @@ window.clearAdminLogs = function() {
   if (!confirm('정말 모든 관리자 감사 로그를 초기화하시겠습니까?')) return;
   if (Storage.saveAdminLogs) {
     Storage.saveAdminLogs([]);
+    if (Storage.clearAdminLogsOnConvex) {
+      Storage.clearAdminLogsOnConvex();
+    }
     renderAdminLogsTable();
     updateStats();
     showAdminToast('관리자 감사 로그가 초기화되었습니다.');
@@ -1426,6 +1546,9 @@ window.toggleAdminStatus = function(id, isChecked) {
 
   adm.status = isChecked ? 'ACTIVE' : 'INACTIVE';
   Storage.saveAdminAccounts(admins);
+  if (Storage.syncAdminToConvex) {
+    Storage.syncAdminToConvex(adm, true);
+  }
   Storage.addAdminLog('총괄관리자', 'STATUS_CHANGE', '관리자 상태 변경', `관리자 [${adm.name}(${adm.username})] 상태를 [${isChecked ? '활성' : '일시정지'}]로 변경`);
 
   renderAdminsTable();
@@ -1456,6 +1579,9 @@ window.deleteAdmin = function(id) {
 
   const updated = admins.filter(a => a.id !== id);
   Storage.saveAdminAccounts(updated);
+  if (Storage.deleteAdminFromConvex) {
+    Storage.deleteAdminFromConvex(id);
+  }
   Storage.addAdminLog('총괄관리자', 'DELETE', '관리자 계정 삭제', `관리자 [${adm.name}(${adm.username})] 계정 영구 삭제`);
 
   renderAdminsTable();
@@ -1584,6 +1710,9 @@ window.handleSaveAdmin = function(e) {
 
   admins.push(newAdmin);
   Storage.saveAdminAccounts(admins);
+  if (Storage.syncAdminToConvex) {
+    Storage.syncAdminToConvex(newAdmin, false);
+  }
   Storage.addAdminLog('총괄관리자', 'CREATE', '신규 관리자 등록', `새 관리자 [${name}(${username})] - 권한: ${roleInfo.label}, 부서: ${dept} 생성`);
 
   closeAdminDialog();
@@ -1694,6 +1823,9 @@ window.handleUpdateAdmin = function(e, id) {
   adm.memo = memo;
 
   Storage.saveAdminAccounts(admins);
+  if (Storage.syncAdminToConvex) {
+    Storage.syncAdminToConvex(adm, true);
+  }
   Storage.addAdminLog('총괄관리자', 'UPDATE', '관리자 정보 수정', `관리자 [${adm.name}(${adm.username})] 정보 및 역할(${roleInfo.label}) 갱신`);
 
   closeAdminDialog();
@@ -1753,6 +1885,11 @@ window.handleResetAdminPassword = function(e, id) {
   const adm = admins.find(a => a.id === id);
   if (!adm) return;
 
+  adm.password = pw;
+  Storage.saveAdminAccounts(admins);
+  if (Storage.syncAdminToConvex) {
+    Storage.syncAdminToConvex(adm, true);
+  }
   Storage.addAdminLog('총괄관리자', 'PW_RESET', '비밀번호 재설정', `관리자 [${adm.name}(${adm.username})]의 비밀번호 보안 재설정 완료`);
 
   closeAdminDialog();
