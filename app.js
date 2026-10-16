@@ -9,11 +9,22 @@ const $$ = s => document.querySelectorAll(s);
 
 
 // Application State
+function getInitialSavedIds() {
+  try {
+    const raw = localStorage.getItem('hd_one_saved');
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
 const State = {
   category: 'all',
   region: 'all',
   savedOnly: false,
-  savedIds: new Set(JSON.parse(localStorage.getItem('hd_one_saved') || '[]')),
+  savedIds: getInitialSavedIds(),
   slideIndices: {}, // hotelId -> active slide index (0..2)
   flatpickrInstance: null
 };

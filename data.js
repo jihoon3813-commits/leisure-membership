@@ -1406,11 +1406,17 @@ const Storage = {
 
   init() {
     let hotels = null;
+    // 캐시 버전 체크 (20261016_v5로 갱신하여 이전 브라우저의 꼬인 캐시 강제 초기화)
+    const CACHE_VERSION = '20261016_v5';
+    const isNewVersion = localStorage.getItem('hd_one_cache_version') === CACHE_VERSION;
+    
     try {
-      hotels = JSON.parse(localStorage.getItem(this.KEYS.HOTELS));
+      hotels = isNewVersion ? JSON.parse(localStorage.getItem(this.KEYS.HOTELS)) : null;
     } catch {}
-    if (!hotels || !Array.isArray(hotels)) {
+
+    if (!hotels || !Array.isArray(hotels) || hotels.length < 40) {
       hotels = DEFAULT_HOTELS;
+      localStorage.setItem('hd_one_cache_version', CACHE_VERSION);
     }
     // 기본 정가 20만원 / 쿠폰가 19,000원 보정
     hotels = hotels.map(h => {
